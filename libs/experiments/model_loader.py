@@ -25,6 +25,12 @@ def get_controller_model(method, goal_source, config_filepath):
         from libs.control.objectreact import ObjRelLearntController
         goal_controller = ObjRelLearntController(
             config_filepath, goal_source=goal_source)
+    elif method == 'learnt_temporal':
+        from temporal_objectreact.objectreact_temporal_controller import (
+            ObjRelTemporalLearntController,
+        )
+        goal_controller = ObjRelTemporalLearntController(
+            config_filepath, goal_source=goal_source)
     return goal_controller
 
 
