@@ -249,6 +249,19 @@ def main():
     n_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
     print(f"  trainable params: {n_train/1e6:.2f}M")
 
+    # EMA aggregator + frozen backbone → no learnable params. Skip training and
+    # dump the init weights so eval has a checkpoint to load.
+    if n_train == 0:
+        print("[train_temporal] no trainable params; saving init checkpoint and exiting.")
+        torch.save({"model": model.state_dict(), "epoch": 0},
+                   out_dir / "latest.pth")
+        torch.save({"model": model.state_dict(), "epoch": 0},
+                   out_dir / "epoch_001.pth")
+        with open(out_dir / "history.json", "w") as f:
+            json.dump([{"epoch": 0, "train_loss": None, "note": "no trainable params"}], f, indent=2)
+        print(f"Done. checkpoint in {out_dir}")
+        return
+
     optim = torch.optim.AdamW(
         [p for p in model.parameters() if p.requires_grad],
         lr=float(config["lr"]),

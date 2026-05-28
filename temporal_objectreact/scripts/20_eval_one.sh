@@ -47,5 +47,5 @@ OVERRIDES+=("exp_name=$TAG")
 
 mkdir -p out
 echo "[20_eval_one] $VARIANT / $TASK   overrides=${OVERRIDES[*]}"
-python -m temporal_objectreact.eval_runner -c "$CFG" --set "${OVERRIDES[@]}" \
+"${PYTHON:-python}" -m temporal_objectreact.eval_runner -c "$CFG" --set "${OVERRIDES[@]}" \
   2>&1 | tee -a "out/eval_${TAG}.log"

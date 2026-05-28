@@ -5,6 +5,15 @@ from pathlib import Path
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="contextlib")
 
+# PyTorch 2.6 flipped torch.load's weights_only default to True, which rejects
+# the upstream ObjectReact HF checkpoint (pickles the GNM class). Restore the
+# pre-2.6 behaviour for the whole process before any controller imports.
+_orig_torch_load = torch.load
+def _patched_torch_load(*args, **kwargs):
+    kwargs.setdefault("weights_only", False)
+    return _orig_torch_load(*args, **kwargs)
+torch.load = _patched_torch_load
+
 
 def get_depth_model():
     from libs.depth.depth_anything_metric_model import DepthAnythingMetricModel

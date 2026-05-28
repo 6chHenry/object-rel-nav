@@ -49,10 +49,14 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
             print("[ObjRelTemporalLearntController] forcing goal_uses_context=True")
             cfg["goal_uses_context"] = True
 
-        # Call parent init, which builds an ObjectReact GNM and downloads
-        # the upstream HF checkpoint.  We then swap that model out for
-        # ours.  This is wasteful (a one-time download) but keeps the
-        # parent constructor's path setup untouched.
+        # Save our load_run aside and force the parent to load the upstream
+        # HF checkpoint instead. Our checkpoints store a plain state_dict
+        # under "model", which the upstream resume_model() can't consume
+        # (it expects a pickled model object). We re-load our weights
+        # ourselves at the end of __init__.
+        _our_load_run = cfg.get("load_run", None)
+        cfg["load_run"] = None
+
         super().__init__(cfg, **kwargs)
 
         # Build our model.  Keep all the kwargs the parent used.
@@ -77,7 +81,7 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
             predict_dists=self.config.get("predict_dists", False),
         )
         # Load our finetuned weights if available.
-        load_run = self.config.get("load_run", None)
+        load_run = _our_load_run
         if load_run is None:
             print("[ObjRelTemporalLearntController] WARNING: no load_run set; "
                   "falling back to the upstream backbone with a randomly "
