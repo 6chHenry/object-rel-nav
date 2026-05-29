@@ -1109,6 +1109,12 @@ def preload_models(args):
     goal_controller = model_loader.get_controller_model(
         args.method, args.goal_source, args.controller["config_file"])
 
+    # Our temporal controller piggy-backs on the regular "learnt" code path
+    # for everything except controller construction; normalise the method
+    # name so downstream method checks (== "learnt") fire as expected.
+    if args.method.lower() == "learnt_temporal":
+        args.method = "learnt"
+
     segmentor = None
     if args.goal_source == "topological":
 
