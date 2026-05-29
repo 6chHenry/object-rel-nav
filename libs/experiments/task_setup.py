@@ -22,6 +22,11 @@ from libs.logger.level import LOG_LEVEL
 
 logger.setLevel(LOG_LEVEL)
 
+
+def _normalized_method(method):
+    method = method.lower()
+    return "learnt" if method == "learnt_temporal" else method
+
 from libs.goal_generator import goal_gen
 from libs.experiments import model_loader
 from libs.control.robohop import control_with_mask
@@ -54,7 +59,9 @@ class Episode:
         self.traversable_class_indices = None
 
         if self.args.log_robot:
-            episode_results_dir = f"{self.path_episode.parts[-1]}_{self.args.method.lower()}_{self.args.goal_source}"
+            episode_results_dir = (
+                f"{self.path_episode.parts[-1]}_{_normalized_method(self.args.method)}_{self.args.goal_source}"
+            )
             self.path_episode_results = path_results_folder / episode_results_dir
             self.path_episode_results.mkdir(exist_ok=True, parents=True)
             self.set_logging()
@@ -480,7 +487,7 @@ class Episode:
             self.get_goal_object_id()
             self.precompute_graph_paths()
         elif goal_source == "image_topological":
-            if self.args.method.lower() == "learnt":
+            if _normalized_method(self.args.method) == "learnt":
                 self.goalie = type("", (), {})()
                 self.goalie.config = self.preload_data["goal_controller"].config
                 self.goalie.map_images = []
@@ -1020,7 +1027,7 @@ def setup_wandb_logging(args):
     wandb.init(project="obj_rel_nav")
     wandb.config.update(args)
     wandb.run.name = (
-        f"{args.exp_name}_{args.task_type}_{args.method}_{args.goal_source}"
+        f"{args.exp_name}_{args.task_type}_{_normalized_method(args.method)}_{args.goal_source}"
     )
 
 
@@ -1083,7 +1090,7 @@ def init_results_dir_and_save_cfg(args, default_logger=None):
             / args.exp_name
             / args.split
             / args.max_start_distance
-            / f'{datetime.now().strftime("%Y%m%d-%H-%M-%S")}_{args.method.lower()}_{args.goal_source}'
+            / f'{datetime.now().strftime("%Y%m%d-%H-%M-%S")}_{_normalized_method(args.method)}_{args.goal_source}'
         )
         path_results_folder.mkdir(exist_ok=True, parents=True)
         if default_logger is not None:
@@ -1095,7 +1102,7 @@ def init_results_dir_and_save_cfg(args, default_logger=None):
 
     if args.log_robot:
         save_dict(path_results_folder / "args.yaml", vars(args))
-        if args.method.lower() == "learnt":
+        if _normalized_method(args.method) == "learnt":
             args_filepath = args.controller["config_file"]
             shutil.copyfile(
                 args_filepath, path_results_folder / Path(args_filepath).name

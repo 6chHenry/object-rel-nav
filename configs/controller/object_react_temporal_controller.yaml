@@ -1,0 +1,42 @@
+# Inference-time controller config for the temporal ObjectReact variant.
+# Mirrors object_react_controller.yaml but flips on the temporal goal window
+# and selects the GNMTemporal model class.
+
+load_run: null  # filled in by the eval script; e.g. logs/temporal_gated_gru/latest.pth
+
+# KEY PARAMS
+predict_dists: False
+goal_type: "image_mask_enc"     # ["image", "disabled", "image_mask_enc"]
+obs_type: "disabled"            # ["image", "disabled", "image_mask_enc"]
+dims: 8
+goal_uses_context: True         # mandatory: the temporal aggregator needs K frames
+is_pl_normalized: False
+use_vel_filter: True
+use_mask_grad: False
+
+# navigation params, copied from object_react_controller.yaml
+close_threshold: 3
+loc_radius: 4
+waypoint_index: -1
+fixed_plan: False
+
+# model params
+model_type: gnm_temporal
+obs_encoding_size: 1024
+goal_encoding_size: 1024
+temporal_aggregator: gated_gru  # [mean, ema, gru, gated_gru, gru_no_gate]
+temporal_ema_lambda: 0.7
+
+# normalization for the action space
+normalize: True
+
+# context
+context_type: temporal
+context_size: 5
+
+# action output params
+len_traj_pred: 10
+learn_angle: True
+
+# dataset specific parameters
+image_size: [85, 64]
