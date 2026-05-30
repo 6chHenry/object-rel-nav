@@ -39,6 +39,7 @@ and the matching controller config is
 2. **Train** one variant (writes to `logs/temporal_<variant>/`):
    ```
    bash temporal_objectreact/scripts/10_train_temporal.sh gated_gru
+   bash temporal_objectreact/scripts/10_train_temporal.sh reliability_gated_gru
    bash temporal_objectreact/scripts/10_train_temporal.sh gru
    bash temporal_objectreact/scripts/10_train_temporal.sh ema
    ```
@@ -55,7 +56,7 @@ and the matching controller config is
    bash temporal_objectreact/scripts/21_eval_all_tasks.sh temporal
    ```
    For the baseline number, run `... 21_eval_all_tasks.sh baseline`.
-5. **Ablation across aggregators** (mean / ema / gru / gated_gru):
+5. **Ablation across aggregators** (mean / ema / gru / gated_gru / reliability_gated_gru):
    ```
    bash temporal_objectreact/scripts/30_ablation.sh
    ```
@@ -81,6 +82,7 @@ accepts `key=value` (and dotted keys, e.g. `controller.load_run=foo.pth`).
 | `ema`                        | 0      | $\lambda$ from `temporal_ema_lambda` |
 | `gru`                        | ~6.3 M | one-layer GRU                   |
 | `gated_gru` (default)        | +2     | GRU mixed with running EMA via $\sigma(w\cos+b)$ |
+| `reliability_gated_gru`      | ~6.8 M | GRU with learned reliability gate over current/history relations |
 | `gru_no_gate`                | ~6.3 M | gated mix disabled              |
 
 ## Smoke test

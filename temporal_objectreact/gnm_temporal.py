@@ -36,6 +36,7 @@ from vint_train.models.gnm.gnm import GNM  # noqa: E402  (path injection above)
 from .temporal_aggregator import (  # noqa: E402
     EMATemporalAggregator,
     GRUTemporalAggregator,
+    ReliabilityGatedGRUTemporalAggregator,
     TemporalCostmapAggregator,
 )
 
@@ -51,6 +52,11 @@ def _make_aggregator(kind: str, dim: int, ema_lambda: float = 0.7):
         return GRUTemporalAggregator(dim=dim)
     if kind in {"gated_gru", "gru_gated", "tca"}:
         return TemporalCostmapAggregator(dim=dim, ema_lambda=ema_lambda, use_gate=True)
+    if kind in {"reliability_gated_gru", "rel_gated_gru", "rgru"}:
+        return ReliabilityGatedGRUTemporalAggregator(
+            dim=dim,
+            ema_lambda=ema_lambda,
+        )
     if kind == "gru_no_gate":
         return TemporalCostmapAggregator(dim=dim, ema_lambda=ema_lambda, use_gate=False)
     raise ValueError(f"Unknown temporal_aggregator: {kind}")
@@ -66,7 +72,7 @@ class GNMTemporal(GNM):
 
     Extra kwargs:
         temporal_aggregator (str): "mean" (upstream behaviour), "ema",
-            "gru", "gated_gru", or "gru_no_gate".
+            "gru", "gated_gru", "reliability_gated_gru", or "gru_no_gate".
         temporal_ema_lambda (float): EMA decay used by EMA / gate variants.
     """
 

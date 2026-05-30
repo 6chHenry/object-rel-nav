@@ -103,8 +103,19 @@ def main():
             yaml.safe_dump(cfg, f, sort_keys=False)
         rel_tmp = Path(tmp_path).relative_to(_REPO_ROOT)
         cmd = [sys.executable, "main.py", "-c", str(rel_tmp)]
+        env = os.environ.copy()
+        lib_paths = [
+            "/usr/lib/x86_64-linux-gnu",
+            "/lib/x86_64-linux-gnu",
+            str(_REPO_ROOT / "portable_envs" / "nav_env" / "lib"),
+        ]
+        existing_ld_path = env.get("LD_LIBRARY_PATH", "")
+        if existing_ld_path:
+            lib_paths.append(existing_ld_path)
+        env["LD_LIBRARY_PATH"] = ":".join(lib_paths)
+        env.setdefault("EGL_PLATFORM", "surfaceless")
         print(f"[eval_runner] {' '.join(cmd)}")
-        rc = subprocess.call(cmd, cwd=str(_REPO_ROOT))
+        rc = subprocess.call(cmd, cwd=str(_REPO_ROOT), env=env)
         sys.exit(rc)
     finally:
         if not args.keep_temp:
