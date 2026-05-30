@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run the temporal-aggregator ablation: mean (= upstream), ema, gru, gated_gru.
+# Run the temporal-aggregator ablation: mean (= upstream), ema, gru, gated_gru,
+# reliability_gated_gru.
 # For each aggregator we expect a matching checkpoint at logs/temporal_<name>/latest.pth
 # (mean uses the upstream ObjectReact checkpoint as-is).
 #
@@ -8,7 +9,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
-AGGREGATORS=("mean" "ema" "gru" "gated_gru")
+AGGREGATORS=("mean" "ema" "gru" "gated_gru" "reliability_gated_gru")
 
 for AGG in "${AGGREGATORS[@]}"; do
   if [[ "$AGG" == "mean" ]]; then

@@ -95,7 +95,9 @@ def build_datasets(config, kwargs):
                     ds,
                     batch_size=config.get("eval_batch_size", config["batch_size"]),
                     shuffle=False,
-                    num_workers=config.get("num_workers", 4),
+                    num_workers=config.get(
+                        "eval_num_workers", config.get("num_workers", 4)
+                    ),
                     drop_last=False,
                     pin_memory=True,
                 )

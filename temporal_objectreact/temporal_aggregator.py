@@ -5,11 +5,13 @@ Given a sliding window of K per-frame goal embeddings e(c_{t-K+1..t}),
 produce a single aggregated embedding to feed into the downstream
 ObjectReact controller head.
 
-Implements three variants:
+Implements four trainable / training-free variants:
   - EMATemporalAggregator: training-free baseline, exponential moving average.
   - GRUTemporalAggregator: single-layer GRU over the embedding sequence.
   - TemporalCostmapAggregator: GRU wrapped with a learned confidence gate that
     down-weights anomalous frames *before* they enter the GRU.
+  - ReliabilityGatedGRUTemporalAggregator: GRU wrapped with a learned
+    reliability gate over current/history feature relations.
 
 All aggregators expect a tensor of shape (B, K, D) where K is the window
 length and D is the embedding dimension produced by the upstream
@@ -183,6 +185,90 @@ class TemporalCostmapAggregator(nn.Module):
 
 
 # ---------------------------------------------------------------------------
+# Reliability-gated GRU aggregator
+# ---------------------------------------------------------------------------
+class ReliabilityGate(nn.Module):
+    """Per-frame learned reliability gate using current/history relations."""
+
+    def __init__(
+        self,
+        dim: int,
+        ema_lambda: float = 0.7,
+        hidden_dim: Optional[int] = None,
+    ):
+        super().__init__()
+        if not (0.0 < ema_lambda < 1.0):
+            raise ValueError(f"ema_lambda must be in (0, 1), got {ema_lambda}")
+        self.ema_lambda = ema_lambda
+        hidden_dim = hidden_dim or max(32, dim // 8)
+        self.scorer = nn.Sequential(
+            nn.Linear(dim * 4 + 2, hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(
+        self, x: torch.Tensor, return_alpha: bool = False
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        B, K, _D = x.shape
+        gated = []
+        alphas = []
+
+        mean = x[:, 0]
+        gated.append(x[:, 0])
+        alphas.append(torch.ones(B, device=x.device, dtype=x.dtype))
+
+        for t in range(1, K):
+            e_t = x[:, t]
+            diff = torch.abs(e_t - mean)
+            prod = e_t * mean
+            cos = F.cosine_similarity(e_t, mean, dim=-1).clamp(-1.0, 1.0)
+            delta = diff.norm(dim=-1) / (
+                mean.norm(dim=-1) + e_t.norm(dim=-1) + 1e-6
+            )
+            gate_input = torch.cat(
+                [e_t, mean, diff, prod, cos.unsqueeze(-1), delta.unsqueeze(-1)],
+                dim=-1,
+            )
+            alpha = torch.sigmoid(self.scorer(gate_input).squeeze(-1))
+            alphas.append(alpha)
+
+            mixed = alpha.unsqueeze(-1) * e_t + (1.0 - alpha).unsqueeze(-1) * mean
+            gated.append(mixed)
+            mean = self.ema_lambda * mean + (1.0 - self.ema_lambda) * e_t
+
+        gated_t = torch.stack(gated, dim=1)
+        alpha_t = torch.stack(alphas, dim=1) if return_alpha else None
+        return gated_t, alpha_t
+
+
+class ReliabilityGatedGRUTemporalAggregator(nn.Module):
+    """GRU aggregator with a learned reliability gate before recurrent update."""
+
+    def __init__(
+        self,
+        dim: int,
+        hidden_dim: Optional[int] = None,
+        ema_lambda: float = 0.7,
+        gate_hidden_dim: Optional[int] = None,
+    ):
+        super().__init__()
+        self.gate = ReliabilityGate(
+            dim=dim,
+            ema_lambda=ema_lambda,
+            hidden_dim=gate_hidden_dim,
+        )
+        self.gru = GRUTemporalAggregator(dim=dim, hidden_dim=hidden_dim)
+
+    def forward(
+        self, x: torch.Tensor, return_alpha: bool = False
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        x, alpha = self.gate(x, return_alpha=return_alpha)
+        out = self.gru(x)
+        return out, alpha
+
+
+# ---------------------------------------------------------------------------
 # Small sanity test (only executed when running the file directly)
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -194,6 +280,7 @@ if __name__ == "__main__":
         ("EMA", EMATemporalAggregator(lam=0.7)),
         ("GRU", GRUTemporalAggregator(dim=D)),
         ("GatedGRU", TemporalCostmapAggregator(dim=D)),
+        ("RelGated", ReliabilityGatedGRUTemporalAggregator(dim=D)),
     ]:
         out = mod(x)
         if isinstance(out, tuple):
