@@ -37,9 +37,7 @@ MODE_OVERRIDES = {
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", required=True, choices=sorted(BASE_CONFIGS))
-    parser.add_argument(
-        "--mode", default="clean", choices=sorted(MODE_OVERRIDES)
-    )
+    parser.add_argument("--mode", default="clean", choices=sorted(MODE_OVERRIDES))
     parser.add_argument("--output", required=True)
     parser.add_argument("--ema-lambda", dest="ema_lambda", type=float, default=0.7)
     parser.add_argument("--noise-prob", dest="noise_prob", type=float, default=0.2)

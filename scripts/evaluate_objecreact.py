@@ -104,7 +104,6 @@ for results_dir in tqdm(results_dirs):
             # print(f"Episode {ei} [{ed.name}]:", success_status)
             num_success += 1
             if report_collisions or compute_spl:
-
                 results_csv_filename = ed / "results.csv"
                 results_csv = results_csv_filename.read_text().splitlines()
 
@@ -144,10 +143,14 @@ for results_dir in tqdm(results_dirs):
     denom = len(episode_dirs) - num_ignored  # len(episode_names_ignore)
 
     if verbose:
-        print(f"[{num_success/denom*100:.2f}%] {num_success=} of {denom} episodes")
-        print(f"[{num_exceeded/denom*100:.2f}%] {num_exceeded=} of {denom} episodes")
-        print(f"[{num_errors/denom*100:.2f}%] {num_errors=} of {denom} episodes")
-        print(f"[{num_no_status/denom*100:.2f}%] {num_no_status=} of {denom} episodes")
+        print(f"[{num_success / denom * 100:.2f}%] {num_success=} of {denom} episodes")
+        print(
+            f"[{num_exceeded / denom * 100:.2f}%] {num_exceeded=} of {denom} episodes"
+        )
+        print(f"[{num_errors / denom * 100:.2f}%] {num_errors=} of {denom} episodes")
+        print(
+            f"[{num_no_status / denom * 100:.2f}%] {num_no_status=} of {denom} episodes"
+        )
         print(f"Num Missing episodes: {len(episode_identifiers)}")
         print(f"Num Ignored episodes: {num_ignored}")
         if report_collisions:
@@ -155,9 +158,9 @@ for results_dir in tqdm(results_dirs):
                 f"MeanAvg Collisions of Success Runs: {np.mean(avg_collisions_list):.2f}"
             )
         if compute_spl:
-            print(f"Mean SPL of Success Runs: {np.sum(spl_list)/denom*100:.2f}")
+            print(f"Mean SPL of Success Runs: {np.sum(spl_list) / denom * 100:.2f}")
         if compute_soft_spl:
-            print(f"Mean Soft SPL: {np.sum(soft_spl_list)/denom*100:.2f}")
+            print(f"Mean Soft SPL: {np.sum(soft_spl_list) / denom * 100:.2f}")
 
     if task_type not in paper_results:
         paper_results[task_type] = {}

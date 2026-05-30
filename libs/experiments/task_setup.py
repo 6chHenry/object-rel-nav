@@ -62,7 +62,7 @@ class Episode:
         if args.env == "sim":
             if not (self.path_episode / "agent_states.npy").exists():
                 raise FileNotFoundError(
-                    f'{self.path_episode / "agent_states.npy"} does not exist...'
+                    f"{self.path_episode / 'agent_states.npy'} does not exist..."
                 )
 
         self.num_map_images = len(os.listdir(self.path_episode / "images"))
@@ -256,7 +256,7 @@ class Episode:
                     "e3d_min",
                 ]:
                     suffix_str_depth = f"_depth_inferred"
-                graph_filename = f'nodes_{self.args.goal_gen["map_segmentor_name"]}_{self.args.goal_gen["map_matcher_name"]}{suffix_str_depth}.pickle'
+                graph_filename = f"nodes_{self.args.goal_gen['map_segmentor_name']}_{self.args.goal_gen['map_matcher_name']}{suffix_str_depth}.pickle"
             elif goal_source == "gt_topological":
                 graph_filename = "nodes_gt_topological.pickle"
             elif goal_source == "gt_topometric":
@@ -350,7 +350,6 @@ class Episode:
 
         cull_inds = []
         for si, img_path in enumerate(img_paths):
-
             cull_mask_path_i = str(save_cull_mask_path / f"{si:04d}.jpg")
             # Temporarily disable loading cull masks from disk
             if 0:  # os.path.exists(cull_mask_path_i):
@@ -429,9 +428,9 @@ class Episode:
             cfg_goalie = self.args.goal_gen
             cfg_goalie.update({"use_gt_localization": self.args.use_gt_localization})
             if segmentor_name == "sam2":
-                assert (
-                    cfg_goalie["matcher_name"] == "sam2"
-                ), "TODO: is other matcher implemented for this segmentor?"
+                assert cfg_goalie["matcher_name"] == "sam2", (
+                    "TODO: is other matcher implemented for this segmentor?"
+                )
                 cfg_goalie.update({"sam2_tracker": self.segmentor})
 
             self.goalie = goal_gen.Goal_Gen(
@@ -710,32 +709,36 @@ class Episode:
                     self.control_input_learnt[1]
                 )
 
-        elif goal_source == 'image_topological':
-            if control_method == 'learnt':
+        elif goal_source == "image_topological":
+            if control_method == "learnt":
                 plan_shift = 1
                 if self.args.use_gt_localization:
                     if self.args.reverse:
                         plan_shift = -1
                     self.goalie.goal_idx = goal_img_idx + plan_shift
 
-                if self.args.use_gt_localization and self.goalie.config['fixed_plan']:
-                    img_goal = self.goalie.map_images[min(
-                        self.goalie.goal_idx, self.goalie.num_map_images - 1)]
+                if self.args.use_gt_localization and self.goalie.config["fixed_plan"]:
+                    img_goal = self.goalie.map_images[
+                        min(self.goalie.goal_idx, self.goalie.num_map_images - 1)
+                    ]
                 else:
-                    start = max(self.goalie.goal_idx -
-                                self.goalie.loc_radius, 0)
+                    start = max(self.goalie.goal_idx - self.goalie.loc_radius, 0)
                     end = min(
-                        self.goalie.goal_idx + self.goalie.loc_radius + 1, self.goalie.num_map_images)
+                        self.goalie.goal_idx + self.goalie.loc_radius + 1,
+                        self.goalie.num_map_images,
+                    )
                     img_goal_list = self.goalie.map_images[start:end]
                     self.goalie.goal_idx = self.goal_controller.predict_goal_idx(
-                        rgb, img_goal_list, self.args.reverse)
+                        rgb, img_goal_list, self.args.reverse
+                    )
                     img_goal = img_goal_list[self.goalie.goal_idx]
                     self.goalie.goal_idx += start
                 self.control_input_learnt = img_goal
                 self.goal_mask = img_goal.copy()
             else:
                 raise NotImplementedError(
-                    f'{goal_source=} only defined for {control_method=}...')
+                    f"{goal_source=} only defined for {control_method=}..."
+                )
 
         else:
             raise NotImplementedError(f"{self.args.goal_source} is not available...")
@@ -783,14 +786,23 @@ class Episode:
             if not (step % 63) or self.discrete_action == 0:
                 self.goal_controller.reset(rgb, self.pixnav_goal_mask.astype(np.uint8))
             self.discrete_action, predicted_mask = self.goal_controller.step(
-                rgb, self.collided)
+                rgb, self.collided
+            )
 
-        elif control_method == 'learnt':
-            if self.control_input_learnt[0] is None or self.control_input_learnt[1] is None:
-                self.velocity_control, self.theta_control, self.vis_img = 0, 0, self.vis_img_default.copy()
+        elif control_method == "learnt":
+            if (
+                self.control_input_learnt[0] is None
+                or self.control_input_learnt[1] is None
+            ):
+                self.velocity_control, self.theta_control, self.vis_img = (
+                    0,
+                    0,
+                    self.vis_img_default.copy(),
+                )
             else:
-                self.velocity_control, self.theta_control, self.vis_img = self.goal_controller.predict(
-                    rgb, self.control_input_learnt)
+                self.velocity_control, self.theta_control, self.vis_img = (
+                    self.goal_controller.predict(rgb, self.control_input_learnt)
+                )
             self.controller_logs = self.goal_controller.controller_logs
 
         else:
@@ -892,8 +904,12 @@ class Episode:
                 "theta_control": self.theta_control,
                 "collided": self.collided,
                 "discrete_action": self.discrete_action,
-                "agent_states": self.agent.get_state() if self.agent is not None else None,
-                "controller_logs": self.controller_logs[-1] if self.controller_logs is not None and len(self.controller_logs) > 0 else None,
+                "agent_states": self.agent.get_state()
+                if self.agent is not None
+                else None,
+                "controller_logs": self.controller_logs[-1]
+                if self.controller_logs is not None and len(self.controller_logs) > 0
+                else None,
             }
 
             self.update_results_dict(results_dict_curr)
@@ -1083,7 +1099,7 @@ def init_results_dir_and_save_cfg(args, default_logger=None):
             / args.exp_name
             / args.split
             / args.max_start_distance
-            / f'{datetime.now().strftime("%Y%m%d-%H-%M-%S")}_{args.method.lower()}_{args.goal_source}'
+            / f"{datetime.now().strftime('%Y%m%d-%H-%M-%S')}_{args.method.lower()}_{args.goal_source}"
         )
         path_results_folder.mkdir(exist_ok=True, parents=True)
         if default_logger is not None:
@@ -1107,7 +1123,8 @@ def init_results_dir_and_save_cfg(args, default_logger=None):
 def preload_models(args):
     # preload some models before iterating over the episodes
     goal_controller = model_loader.get_controller_model(
-        args.method, args.goal_source, args.controller["config_file"])
+        args.method, args.goal_source, args.controller["config_file"]
+    )
 
     # Our temporal controller piggy-backs on the regular "learnt" code path
     # for everything except controller construction; normalise the method
@@ -1117,7 +1134,6 @@ def preload_models(args):
 
     segmentor = None
     if args.goal_source == "topological":
-
         # use predefined traversable classes with fast_sam predictions only if it is tango and infer_traversable is True
         traversable_class_names = (
             args.traversable_class_names

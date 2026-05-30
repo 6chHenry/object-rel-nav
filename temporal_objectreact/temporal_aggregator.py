@@ -17,6 +17,7 @@ All aggregators expect a tensor of shape (B, K, D) where K is the window
 length and D is the embedding dimension produced by the upstream
 ``GoalEncoder``.  They return a tensor of shape (B, D).
 """
+
 from __future__ import annotations
 
 from typing import Optional, Tuple
@@ -47,7 +48,7 @@ class EMATemporalAggregator(nn.Module):
         K = x.shape[1]
         # weights[k] = lam ** (K - 1 - k); index K-1 (most recent) has weight 1.
         exps = torch.arange(K - 1, -1, -1, device=x.device, dtype=x.dtype)
-        w = self.lam ** exps
+        w = self.lam**exps
         w = w / w.sum()
         return (x * w.view(1, K, 1)).sum(dim=1)
 
@@ -223,9 +224,7 @@ class ReliabilityGate(nn.Module):
             diff = torch.abs(e_t - mean)
             prod = e_t * mean
             cos = F.cosine_similarity(e_t, mean, dim=-1).clamp(-1.0, 1.0)
-            delta = diff.norm(dim=-1) / (
-                mean.norm(dim=-1) + e_t.norm(dim=-1) + 1e-6
-            )
+            delta = diff.norm(dim=-1) / (mean.norm(dim=-1) + e_t.norm(dim=-1) + 1e-6)
             gate_input = torch.cat(
                 [e_t, mean, diff, prod, cos.unsqueeze(-1), delta.unsqueeze(-1)],
                 dim=-1,
@@ -285,5 +284,7 @@ if __name__ == "__main__":
         out = mod(x)
         if isinstance(out, tuple):
             out = out[0]
-        print(f"{name:9s}  in={tuple(x.shape)}  out={tuple(out.shape)}  "
-              f"params={sum(p.numel() for p in mod.parameters())}")
+        print(
+            f"{name:9s}  in={tuple(x.shape)}  out={tuple(out.shape)}  "
+            f"params={sum(p.numel() for p in mod.parameters())}"
+        )

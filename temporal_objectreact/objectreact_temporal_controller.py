@@ -13,6 +13,7 @@ The rest of the pipeline (mapping, perception, planner) is reused
 verbatim.  The class is registered on first import so that
 ``configs/object_react_temporal.yaml`` can refer to it by name.
 """
+
 from __future__ import annotations
 
 import sys
@@ -60,9 +61,7 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
         super().__init__(cfg, **kwargs)
 
         # Build our model.  Keep all the kwargs the parent used.
-        self.config["temporal_aggregator"] = cfg.get(
-            "temporal_aggregator", "gated_gru"
-        )
+        self.config["temporal_aggregator"] = cfg.get("temporal_aggregator", "gated_gru")
         self.config["temporal_ema_lambda"] = cfg.get("temporal_ema_lambda", 0.7)
         new_model = GNMTemporal(
             self.config["context_size"],
@@ -83,9 +82,11 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
         # Load our finetuned weights if available.
         load_run = _our_load_run
         if load_run is None:
-            print("[ObjRelTemporalLearntController] WARNING: no load_run set; "
-                  "falling back to the upstream backbone with a randomly "
-                  "initialised aggregator.")
+            print(
+                "[ObjRelTemporalLearntController] WARNING: no load_run set; "
+                "falling back to the upstream backbone with a randomly "
+                "initialised aggregator."
+            )
             # Copy as much as possible from the parent model so we get the
             # ObjectReact pretrained encoder/head.
             new_model.load_state_dict(self.model.state_dict(), strict=False)

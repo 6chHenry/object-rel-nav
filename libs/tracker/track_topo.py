@@ -1,13 +1,16 @@
-
 import numpy as np
 
 import logging
-logger = logging.getLogger("[Tracker]") # logger level is explicitly set below by LOG_LEVEL
+
+logger = logging.getLogger(
+    "[Tracker]"
+)  # logger level is explicitly set below by LOG_LEVEL
 
 from libs.matcher import lightglue as matcher_lg
 from libs.common import utils
 
 from libs.logger.level import LOG_LEVEL
+
 logger.setLevel(LOG_LEVEL)
 
 
@@ -17,8 +20,8 @@ class TrackTopological:
         self.img_history = []
         self.nodes_history = []
         self.ft_history = []
-        self.global_pls_history = [] # stores global path length (pl) values
-        self.local_pls_history = [] # stores local pl values (i.e., intra-image normalized pl)
+        self.global_pls_history = []  # stores global path length (pl) values
+        self.local_pls_history = []  # stores local pl values (i.e., intra-image normalized pl)
         self.max_pl = max_pl
 
         self.curr_to_matched_global_pls_history = None
@@ -33,17 +36,32 @@ class TrackTopological:
             return None
 
         matchPairsList, _, _ = self.matcher.matchPair_imgWithMask_multi(
-            currImg, self.img_history, currNodes, self.nodes_history, ftTgtList=self.ft_history)
+            currImg,
+            self.img_history,
+            currNodes,
+            self.nodes_history,
+            ftTgtList=self.ft_history,
+        )
 
         matched_global_pls_history = np.concatenate(
-            [self.global_pls_history[i][matchPairs[:, 1]] for i, matchPairs in enumerate(matchPairsList)])
+            [
+                self.global_pls_history[i][matchPairs[:, 1]]
+                for i, matchPairs in enumerate(matchPairsList)
+            ]
+        )
         matched_local_pls_history = np.concatenate(
-            [self.local_pls_history[i][matchPairs[:, 1]] for i, matchPairs in enumerate(matchPairsList)])
+            [
+                self.local_pls_history[i][matchPairs[:, 1]]
+                for i, matchPairs in enumerate(matchPairsList)
+            ]
+        )
 
         self.curr_to_matched_global_pls_history = np.column_stack(
-            [np.vstack(matchPairsList)[:, 0], matched_global_pls_history])
+            [np.vstack(matchPairsList)[:, 0], matched_global_pls_history]
+        )
         self.curr_to_matched_local_pls_history = np.column_stack(
-            [np.vstack(matchPairsList)[:, 0], matched_local_pls_history])
+            [np.vstack(matchPairsList)[:, 0], matched_local_pls_history]
+        )
 
         return self.curr_to_matched_global_pls_history
 
@@ -66,12 +84,17 @@ class TrackTopological:
         return pls_median
 
     def update(self, curr_global_pls, currImg, currNodes, currFt):
-
-        global_pls = self.compute_updated_pls(curr_global_pls, self.curr_to_matched_global_pls_history)
+        global_pls = self.compute_updated_pls(
+            curr_global_pls, self.curr_to_matched_global_pls_history
+        )
 
         # TODO: fix scaling and tracking
-        local_pls = 99 * utils.normalize_pls_new(global_pls, scale_factor=1, outlier_value=self.max_pl)
-        local_pls = self.compute_updated_pls(local_pls, self.curr_to_matched_local_pls_history)
+        local_pls = 99 * utils.normalize_pls_new(
+            global_pls, scale_factor=1, outlier_value=self.max_pl
+        )
+        local_pls = self.compute_updated_pls(
+            local_pls, self.curr_to_matched_local_pls_history
+        )
 
         self.global_pls_history.append(global_pls)
         self.local_pls_history.append(local_pls)
@@ -87,5 +110,5 @@ class TrackTopological:
             self.ft_history.pop(0)
             self.global_pls_history.pop(0)
             self.local_pls_history.pop(0)
-        
+
         return global_pls, local_pls

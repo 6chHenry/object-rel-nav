@@ -17,6 +17,7 @@ The merged config is written to a fresh temp file and passed to ``main.py``
 via ``-c``; we avoid importing ``main`` directly because it triggers global
 side effects (logger setup, seeding, habitat init) on import.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -49,10 +50,17 @@ def _parse_value(raw: str):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", "-c", required=True)
-    ap.add_argument("--set", nargs="*", default=[],
-                    help="key=value overrides; key may be dotted, e.g. controller.load_run=foo")
-    ap.add_argument("--keep-temp", action="store_true",
-                    help="don't delete the merged temp config (useful for debugging)")
+    ap.add_argument(
+        "--set",
+        nargs="*",
+        default=[],
+        help="key=value overrides; key may be dotted, e.g. controller.load_run=foo",
+    )
+    ap.add_argument(
+        "--keep-temp",
+        action="store_true",
+        help="don't delete the merged temp config (useful for debugging)",
+    )
     args = ap.parse_args()
 
     cfg_path = Path(args.config)
@@ -72,7 +80,7 @@ def main():
         k, v = kv.split("=", 1)
         val = _parse_value(v)
         if k.startswith("controller.") and k != "controller.config_file":
-            ctrl_overrides[k[len("controller."):]] = val
+            ctrl_overrides[k[len("controller.") :]] = val
         else:
             _set_nested(cfg, k, val)
 

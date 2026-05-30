@@ -21,7 +21,6 @@ class PriorityQueue:
 
 
 class CostMapGrid:
-
     def __init__(self, width: int, height: int, cost_map: Optional[np.ndarray] = None):
         self.width = width
         self.height = height
@@ -57,12 +56,13 @@ class CostMapGrid:
         x1, y1 = next_node
         x2, y2 = current_node
         x3, y3 = goal_node
-        cost_field = self.cost_map[y1, x1] + np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)  # diagonal costs slightly more
+        cost_field = self.cost_map[y1, x1] + np.sqrt(
+            (x1 - x2) ** 2 + (y1 - y2) ** 2
+        )  # diagonal costs slightly more
         return self.weights.get(next_node, cost_field)
 
 
 class CostMapGraphNX:
-
     def __init__(self, width: int, height: int, cost_map: np.ndarray):
         self.width = width
         self.height = height
@@ -81,7 +81,9 @@ class CostMapGraphNX:
                 x_neighbour, y_neighbour = neighbours
                 distance = np.sqrt((x - x_neighbour) ** 2 + (y - y_neighbour) ** 2)
                 cost = self.cost_map[y_neighbour, x_neighbour] + distance
-                graph.add_edges_from([(f'{x},{y}', f'{x_neighbour},{y_neighbour}')], weight=cost)
+                graph.add_edges_from(
+                    [(f"{x},{y}", f"{x_neighbour},{y_neighbour}")], weight=cost
+                )
 
         return graph
 
@@ -107,10 +109,14 @@ class CostMapGraphNX:
 
     def get_path(self, start: tuple, goal: tuple) -> np.ndarray:
         shortest_path = [
-            coord.split(',') for coord in nx.dijkstra_path(
-                self.graph, f'{start[0]},{start[1]}', f'{goal[0]},{goal[1]}',
-                weight='weight'
-            )]
+            coord.split(",")
+            for coord in nx.dijkstra_path(
+                self.graph,
+                f"{start[0]},{start[1]}",
+                f"{goal[0]},{goal[1]}",
+                weight="weight",
+            )
+        ]
 
         shortest_path = np.array(shortest_path, dtype=float)
         return shortest_path

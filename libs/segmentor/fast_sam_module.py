@@ -33,9 +33,14 @@ import kornia as K
 
 
 class FastSamClass:
-    def __init__(self, config_settings: dict, device: str = 'cuda', traversable_categories: list = None):
+    def __init__(
+        self,
+        config_settings: dict,
+        device: str = "cuda",
+        traversable_categories: list = None,
+    ):
         root_dir = Path(__file__).resolve().parents[2]
-        model_dir = root_dir / 'model_weights'
+        model_dir = root_dir / "model_weights"
         self.device = device
         self.image_width = config_settings["width"]
         self.image_height = config_settings["height"]
@@ -43,16 +48,25 @@ class FastSamClass:
         self.mask_width = config_settings["mask_width"]
         self.no_mask = np.zeros((self.image_height, self.image_width), dtype=np.uint8)
 
-        overrides = dict(conf=config_settings["conf"],
-                         task="segment",
-                         mode="predict", model=str(model_dir / config_settings["model"]),
-                         save=False,
-                         verbose=False,
-                         imgsz=config_settings["imgsz"])
+        overrides = dict(
+            conf=config_settings["conf"],
+            task="segment",
+            mode="predict",
+            model=str(model_dir / config_settings["model"]),
+            save=False,
+            verbose=False,
+            imgsz=config_settings["imgsz"],
+        )
 
         self.predictor = fastsam.FastSAMPredictor(overrides=overrides)
-        _ = self.predictor(np.zeros((config_settings["height"], config_settings["width"], 3), dtype=np.uint8))
-        self.traversable_categories = traversable_categories if traversable_categories is not None else []
+        _ = self.predictor(
+            np.zeros(
+                (config_settings["height"], config_settings["width"], 3), dtype=np.uint8
+            )
+        )
+        self.traversable_categories = (
+            traversable_categories if traversable_categories is not None else []
+        )
 
     @torch.inference_mode()
     def infer(self, image: np.array):
@@ -60,13 +74,21 @@ class FastSamClass:
         return self.process_results(results=results)
 
     @torch.inference_mode()
-    def segment(self, image: np.array, retMaskAsDict: bool = True, textLabels: list = [], textCulls: bool = True) -> tuple:
+    def segment(
+        self,
+        image: np.array,
+        retMaskAsDict: bool = True,
+        textLabels: list = [],
+        textCulls: bool = True,
+    ) -> tuple:
         results = self.predictor(image)[0]
         if results.masks is None:
             print(f"No masks found")
             return None, None, self.no_mask
         if len(self.traversable_categories) != 0:
-            traversable_results, _, _ = self.prompt([results], texts=self.traversable_categories)
+            traversable_results, _, _ = self.prompt(
+                [results], texts=self.traversable_categories
+            )
         else:
             traversable_results = []
 
@@ -95,7 +117,7 @@ class FastSamClass:
         interpolated_tensor = F.interpolate(
             torch.concatenate((mask_data[ordered_sums], traversable_mask))[None, ...],
             size=(self.image_height, self.image_width),
-            mode="nearest-exact"
+            mode="nearest-exact",
         )[0]
         traversable_mask = interpolated_tensor[-1, ...].to(torch.bool)
         traversable_mask = K.tensor_to_image(traversable_mask)
@@ -104,8 +126,14 @@ class FastSamClass:
         mask_sums = mask_sums[ordered_sums].cpu().numpy()
 
         if retMaskAsDict:
-            return [{'segmentation': masks[i], 'area': mask_sums[i]} for i in
-                    range(masks.shape[0])], None, traversable_mask
+            return (
+                [
+                    {"segmentation": masks[i], "area": mask_sums[i]}
+                    for i in range(masks.shape[0])
+                ],
+                None,
+                traversable_mask,
+            )
 
         else:
             return masks, mask_sums, traversable_mask
@@ -116,7 +144,9 @@ class FastSamClass:
         point_masks = []
 
         for point in points:
-            point_mask = self.process_results(self.predictor.prompt(results, points=point)[0])
+            point_mask = self.process_results(
+                self.predictor.prompt(results, points=point)[0]
+            )
             if add_points_masks:
                 results_mask[point_mask > 0] = np.max(results_mask) + 1
             point_masks.append(point_mask)
@@ -129,7 +159,9 @@ class FastSamClass:
         box_masks = []
 
         for box in boxes:
-            box_mask = self.process_results(self.predictor.prompt(results, bboxes=box)[0])
+            box_mask = self.process_results(
+                self.predictor.prompt(results, bboxes=box)[0]
+            )
             if add_boxes_masks:
                 results_mask[box_mask > 0] = np.max(results_mask) + 1
             box_masks.append(box_mask)
@@ -142,42 +174,69 @@ class FastSamClass:
         # Append point query results
         for point in points:
             predictor_results = self.predictor.prompt(results, points=point)[0]
-            results.masks.data = torch.cat((results.masks.data, predictor_results.masks.data), dim=0)
+            results.masks.data = torch.cat(
+                (results.masks.data, predictor_results.masks.data), dim=0
+            )
 
         # Re-order based upon mask size
-        mask_sums = torch.argsort(torch.sum(results.masks.data, dim=(1, 2)), descending=True).to(torch.int32)
+        mask_sums = torch.argsort(
+            torch.sum(results.masks.data, dim=(1, 2)), descending=True
+        ).to(torch.int32)
 
         results.masks.data = results.masks.data[mask_sums].to(torch.uint8).unsqueeze(0)
-        results.masks.data = F.interpolate(results.masks.data, size=(self.image_height, self.image_width),
-                                           mode="nearest-exact").squeeze()
+        results.masks.data = F.interpolate(
+            results.masks.data,
+            size=(self.image_height, self.image_width),
+            mode="nearest-exact",
+        ).squeeze()
 
         results_stack = results.masks[0].data.squeeze()
         masks_tensor = results_stack.clone()
-        results_shape = (results.masks.data.shape[0], self.image_height, self.image_width)
+        results_shape = (
+            results.masks.data.shape[0],
+            self.image_height,
+            self.image_width,
+        )
 
         for i in range(1, results_shape[0]):
             result = results.masks[i].data.squeeze()
-            results_stack = torch.cat((results_stack, results.masks[i].data.squeeze()), dim=0)
+            results_stack = torch.cat(
+                (results_stack, results.masks[i].data.squeeze()), dim=0
+            )
             masks_tensor[result > 0] = i + 1
 
         non_zeros_indices = torch.nonzero(results_stack).cpu().numpy()
 
-        return cv2.resize(masks_tensor.cpu().numpy(), (self.image_width, self.image_height),
-                          interpolation=cv2.INTER_NEAREST), non_zeros_indices, results_shape
+        return (
+            cv2.resize(
+                masks_tensor.cpu().numpy(),
+                (self.image_width, self.image_height),
+                interpolation=cv2.INTER_NEAREST,
+            ),
+            non_zeros_indices,
+            results_shape,
+        )
 
     @torch.inference_mode()
     def process_results(self, results):
         try:
             mask_shape = results.masks[0].data.shape[1:]
-            masks_tensor = torch.zeros(mask_shape, dtype=torch.uint8, device=self.device)
+            masks_tensor = torch.zeros(
+                mask_shape, dtype=torch.uint8, device=self.device
+            )
             # Sort the masks by size
-            mask_sums = torch.argsort(torch.sum(results.masks.data, dim=(1, 2)), descending=True).to(torch.int32)
+            mask_sums = torch.argsort(
+                torch.sum(results.masks.data, dim=(1, 2)), descending=True
+            ).to(torch.int32)
 
             for i, mask in enumerate(results.masks.data[mask_sums]):
                 masks_tensor[mask > 0] = i + 1
 
-            return cv2.resize(masks_tensor.cpu().numpy(), (self.image_width, self.image_height),
-                              interpolation=cv2.INTER_NEAREST)
+            return cv2.resize(
+                masks_tensor.cpu().numpy(),
+                (self.image_width, self.image_height),
+                interpolation=cv2.INTER_NEAREST,
+            )
 
         except:
             return np.zeros((self.image_height, self.image_width), dtype=np.uint8)
@@ -211,8 +270,12 @@ class FastSamClass:
             if bboxes is not None:
                 bboxes = torch.as_tensor(bboxes, dtype=torch.int32, device=self.device)
                 bboxes = bboxes[None] if bboxes.ndim == 1 else bboxes
-                bbox_areas = (bboxes[:, 3] - bboxes[:, 1]) * (bboxes[:, 2] - bboxes[:, 0])
-                mask_areas = torch.stack([masks[:, b[1]: b[3], b[0]: b[2]].sum(dim=(1, 2)) for b in bboxes])
+                bbox_areas = (bboxes[:, 3] - bboxes[:, 1]) * (
+                    bboxes[:, 2] - bboxes[:, 0]
+                )
+                mask_areas = torch.stack(
+                    [masks[:, b[1] : b[3], b[0] : b[2]].sum(dim=(1, 2)) for b in bboxes]
+                )
                 full_mask_areas = torch.sum(masks, dim=(1, 2))
 
                 union = bbox_areas[:, None] + full_mask_areas - mask_areas
@@ -223,16 +286,18 @@ class FastSamClass:
                 if labels is None:
                     labels = torch.ones(points.shape[0])
                 labels = torch.as_tensor(labels, dtype=torch.int32, device=self.device)
-                assert len(labels) == len(
-                    points
-                ), f"Excepted `labels` got same size as `point`, but got {len(labels)} and {len(points)}"
+                assert len(labels) == len(points), (
+                    f"Excepted `labels` got same size as `point`, but got {len(labels)} and {len(points)}"
+                )
                 point_idx = (
                     torch.ones(len(result), dtype=torch.bool, device=self.device)
                     if labels.sum() == 0  # all negative points
                     else torch.zeros(len(result), dtype=torch.bool, device=self.device)
                 )
                 for point, label in zip(points, labels):
-                    point_idx[torch.nonzero(masks[:, point[1], point[0]], as_tuple=True)[0]] = True if label else False
+                    point_idx[
+                        torch.nonzero(masks[:, point[1], point[0]], as_tuple=True)[0]
+                    ] = True if label else False
                 idx |= point_idx
             if texts is not None:
                 if isinstance(texts, str):
@@ -243,11 +308,16 @@ class FastSamClass:
                     if masks[i].sum() <= 100:
                         filter_idx.append(i)
                         continue
-                    crop_ims.append(Image.fromarray(result.orig_img[y1:y2, x1:x2, ::-1]))
+                    crop_ims.append(
+                        Image.fromarray(result.orig_img[y1:y2, x1:x2, ::-1])
+                    )
                 similarity = self.predictor._clip_inference(crop_ims, texts)
                 text_idx = torch.argmax(similarity, dim=-1)  # (M, )
                 if len(filter_idx):
-                    text_idx += (torch.tensor(filter_idx, device=self.device)[:, None] <= text_idx[None, :]).sum(0)
+                    text_idx += (
+                        torch.tensor(filter_idx, device=self.device)[:, None]
+                        <= text_idx[None, :]
+                    ).sum(0)
                 idx[text_idx] = True
             prompt_results.append(result[idx])
             idx_list.append(idx)
@@ -257,12 +327,12 @@ class FastSamClass:
 
     def visualize(self, image: np.array, masks: np.array):
         if type(masks[0]) == dict:
-            masks = [m['segmentation'] for m in masks]
-        colors, _ = utils_viz.value_to_color(np.arange(len(masks)), cm_name='viridis')
+            masks = [m["segmentation"] for m in masks]
+        colors, _ = utils_viz.value_to_color(np.arange(len(masks)), cm_name="viridis")
         img = cv2.resize(image, (self.image_width, self.image_height))
         viz = utils_viz.drawMasksWithColors(img, masks, colors)
         plt.imshow(viz)
-        plt.axis('off')
+        plt.axis("off")
         plt.show()
 
 
@@ -272,9 +342,16 @@ if __name__ == "__main__":
     imgName = sys.argv[1]
     img = cv2.imread(imgName)[:, :, ::-1]
 
-    config_settings = {"conf": 0.25, "model": "FastSAM-s.pt", "imgsz": 480, "height": img.shape[0],
-                       "width": img.shape[1], "mask_height": 416, "mask_width": 480}
-    fastsam = FastSamClass(config_settings, 'cuda')
+    config_settings = {
+        "conf": 0.25,
+        "model": "FastSAM-s.pt",
+        "imgsz": 480,
+        "height": img.shape[0],
+        "width": img.shape[1],
+        "mask_height": 416,
+        "mask_width": 480,
+    }
+    fastsam = FastSamClass(config_settings, "cuda")
 
     # base test
     everything_results = fastsam.predictor(imgName)
@@ -286,7 +363,9 @@ if __name__ == "__main__":
     plt.show()
 
     # wrapper test
-    masks = fastsam.segment(img, retMaskAsDict=False, textLabels=['ceiling', 'floor'])[0]
+    masks = fastsam.segment(img, retMaskAsDict=False, textLabels=["ceiling", "floor"])[
+        0
+    ]
     print(f"Found {len(masks)} masks")
 
     fastsam.visualize(img, masks)

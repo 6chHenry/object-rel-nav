@@ -78,16 +78,16 @@ class ObjRelLearntController:
         self.obs_type = self.config["obs_type"]
         self.image_size = self.config["image_size"]
         if self.goal_source == "image_topological":
-            assert (
-                self.obs_type == "image"
-            ), f"{self.goal_source=} requires obs_type=image"
-            assert (
-                self.goal_type == "image"
-            ), f"{self.goal_source=} requires goal_type=image"
+            assert self.obs_type == "image", (
+                f"{self.goal_source=} requires obs_type=image"
+            )
+            assert self.goal_type == "image", (
+                f"{self.goal_source=} requires goal_type=image"
+            )
         else:
-            assert (
-                self.goal_type == "image_mask_enc"
-            ), f"{self.goal_source=} requires goal_type=image_mask_enc"
+            assert self.goal_type == "image_mask_enc", (
+                f"{self.goal_source=} requires goal_type=image_mask_enc"
+            )
 
         self.pl_outlier_value = 99
         self.is_pl_normalized = self.config["is_pl_normalized"]
@@ -191,9 +191,9 @@ class ObjRelLearntController:
         eps = 1e-8
         max_v, max_w = 0.2, 0.1
 
-        assert (
-            len(waypoint) == 2 or len(waypoint) == 4
-        ), "waypoint must be a 2D or 4D vector"
+        assert len(waypoint) == 2 or len(waypoint) == 4, (
+            "waypoint must be a 2D or 4D vector"
+        )
         if len(waypoint) == 2:
             dx, dy = waypoint
         else:

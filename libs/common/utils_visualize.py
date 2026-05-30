@@ -37,7 +37,6 @@ def visualize_flow(
     display=True,
     fwdVals=None,
 ):
-
     diff = cords_org - cords_dst
     dpi = 100
     img_height, img_width = img.shape[:2]  # Get the image dimensions

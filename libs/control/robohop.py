@@ -4,8 +4,8 @@ from libs.common import utils_visualize as utils_viz
 
 
 def control_with_mask(
-        pls_coords_or_semantic, goal_mask,
-        v: float = 0.05, gain: float = 0.2, tao: int = 10):
+    pls_coords_or_semantic, goal_mask, v: float = 0.05, gain: float = 0.2, tao: int = 10
+):
     height, width = goal_mask.shape
 
     if isinstance(pls_coords_or_semantic, np.ndarray):
@@ -47,10 +47,20 @@ def control_with_mask(
     w = -x_off * gain / (width // 2)
     v = v
 
-    colors, norm = utils_viz.value_to_color(weights, cm_name='viridis')
-    visualize_image = utils_viz.visualize_flow(
-        coords, coords_ref, goal_mask, colors, norm, weights, fwdVals=None, display=False,
-        colorbar=False
-    ).astype(float) / 255.0
+    colors, norm = utils_viz.value_to_color(weights, cm_name="viridis")
+    visualize_image = (
+        utils_viz.visualize_flow(
+            coords,
+            coords_ref,
+            goal_mask,
+            colors,
+            norm,
+            weights,
+            fwdVals=None,
+            display=False,
+            colorbar=False,
+        ).astype(float)
+        / 255.0
+    )
     visualize_image[outliers] = [255, 255, 255]
     return v, w, visualize_image

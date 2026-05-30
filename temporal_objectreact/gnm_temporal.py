@@ -13,6 +13,7 @@ encoder + head (initialisation), and train only the new temporal module
 when ``train_temporal_only=True``.  All other parameters are saved/loaded
 through the same checkpoint format as upstream.
 """
+
 from __future__ import annotations
 
 import os
@@ -159,9 +160,7 @@ class GNMTemporal(GNM):
                                 chunks[drop_idx[b].item()][b]
                             )
                         else:
-                            raise ValueError(
-                                f"Unknown noise_mode: {self.noise_mode}"
-                            )
+                            raise ValueError(f"Unknown noise_mode: {self.noise_mode}")
 
             stacked = torch.stack(
                 [self.goal_mobilenet(c) for c in chunks], dim=1
@@ -202,13 +201,11 @@ class GNMTemporal(GNM):
         action_pred = action_pred.reshape(
             (action_pred.shape[0], self.len_trajectory_pred, self.num_action_params)
         )
-        action_pred[:, :, :2] = torch.cumsum(
-            action_pred[:, :, :2].cpu(), dim=1
-        ).to(action_pred.device)
+        action_pred[:, :, :2] = torch.cumsum(action_pred[:, :, :2].cpu(), dim=1).to(
+            action_pred.device
+        )
         if self.learn_angle:
-            action_pred[:, :, 2:] = F.normalize(
-                action_pred[:, :, 2:].clone(), dim=-1
-            )
+            action_pred[:, :, 2:] = F.normalize(action_pred[:, :, 2:].clone(), dim=-1)
         return dist_pred, action_pred
 
     # ------------------------------------------------------------------
@@ -224,9 +221,11 @@ class GNMTemporal(GNM):
         missing = [k for k in state if k not in own_keys]
         load_state = {k: v for k, v in state.items() if k in own_keys}
         result = self.load_state_dict(load_state, strict=False)
-        print(f"[GNMTemporal] loaded {len(load_state)} keys "
-              f"({len(missing)} keys in checkpoint had no match); "
-              f"aggregator (kind={self.temporal_kind}) kept at random init.")
+        print(
+            f"[GNMTemporal] loaded {len(load_state)} keys "
+            f"({len(missing)} keys in checkpoint had no match); "
+            f"aggregator (kind={self.temporal_kind}) kept at random init."
+        )
         return result
 
 

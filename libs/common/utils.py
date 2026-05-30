@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 def dict_to_args(cfg_dict):
-    args = type('', (), {})()
+    args = type("", (), {})()
     for k, v in cfg_dict.items():
         setattr(args, k, v)
     return args
@@ -28,74 +28,68 @@ def dict_to_args(cfg_dict):
 
 def get_default_args():
     args_dict = {
-        'method': 'tango',
-        'goal_source': 'gt_metric',
-        'graph_filename': None,
-        'max_start_distance': 'easy',
-        'threshold_goal_distance': 0.5,
-        'debug': False,
-        'reverse': False,
-        'max_steps': 500,
-        'run_list': '',
-        'path_run': '',
-        'path_models': None,
-        'log_robot': True,
-        'save_vis': False,
-        'plot': False,
-        'infer_depth': False,
-        'infer_traversable': False,
-        'segmentor': 'fast_sam',
-        'task_type': 'original',
-        'use_gt_localization': False,
-        'cull_qry_instances': False,
-        'cull_map_instances': False,
-        'cull_map_method': 'sim',
-        'env': 'sim',
-        'goal_gen': {
-            'textLabels': [],
-
+        "method": "tango",
+        "goal_source": "gt_metric",
+        "graph_filename": None,
+        "max_start_distance": "easy",
+        "threshold_goal_distance": 0.5,
+        "debug": False,
+        "reverse": False,
+        "max_steps": 500,
+        "run_list": "",
+        "path_run": "",
+        "path_models": None,
+        "log_robot": True,
+        "save_vis": False,
+        "plot": False,
+        "infer_depth": False,
+        "infer_traversable": False,
+        "segmentor": "fast_sam",
+        "task_type": "original",
+        "use_gt_localization": False,
+        "cull_qry_instances": False,
+        "cull_map_instances": False,
+        "cull_map_method": "sim",
+        "env": "sim",
+        "goal_gen": {
+            "textLabels": [],
             # segmentor
-            'map_segmentor_name': 'fast_sam',
-
+            "map_segmentor_name": "fast_sam",
             # matcher
-            'matcher_name': 'lightglue',
-            'map_matcher_name': 'lightglue',
-            'geometric_verification': True,
-            'match_area': False,
-
+            "matcher_name": "lightglue",
+            "map_matcher_name": "lightglue",
+            "geometric_verification": True,
+            "match_area": False,
             # planner
-            'goalNodeIdx': None,
-            'edge_weight_str': None,
-            'use_goal_nbrs': False,
-            'plan_da_nbrs': False,
-            'preplan_to_goals_only': False,
-            'rewrite_graph_with_allPathLengths': False,
-
+            "goalNodeIdx": None,
+            "edge_weight_str": None,
+            "use_goal_nbrs": False,
+            "plan_da_nbrs": False,
+            "preplan_to_goals_only": False,
+            "rewrite_graph_with_allPathLengths": False,
             # localizer
-            'loc_radius': 4,
-            'subsample_ref': 1,
-            'reloc_rad_add': 2,
-            'reloc_rad_max': 15,
-            'min_num_matches': 0,
-            'localizedImgIdx': 0,
-
+            "loc_radius": 4,
+            "subsample_ref": 1,
+            "reloc_rad_add": 2,
+            "reloc_rad_max": 15,
+            "min_num_matches": 0,
+            "localizedImgIdx": 0,
             # tracker
-            'do_track': False,
+            "do_track": False,
         },
-        'sim': {
-            'width': 320,
-            'height': 240,
-            'hfov': 120,
-            'sensor_height': 0.4,
-            'sensor_height_map': 1.31
-
+        "sim": {
+            "width": 320,
+            "height": 240,
+            "hfov": 120,
+            "sensor_height": 0.4,
+            "sensor_height_map": 1.31,
         },
-        'controller': {
-            'config_file': 'configs/controller/object_react_controller.yaml',
-            'v_min': 0.0,
-            'v_max': 0.5,
-            'w_min': -0.5,
-            'w_max': 0.5,
+        "controller": {
+            "config_file": "configs/controller/object_react_controller.yaml",
+            "v_min": 0.0,
+            "v_max": 0.5,
+            "w_min": -0.5,
+            "w_max": 0.5,
         },
     }
     # args_dict as attributes of args
@@ -104,10 +98,13 @@ def get_default_args():
 
 def get_K_from_parameters(hfov_degree, width, height):
     hfov = np.deg2rad(float(hfov_degree))
-    K = np.array([
-        [(width / 2.) / np.tan(hfov / 2.), 0., width / 2.],
-        [0., (height / 2.) / np.tan(hfov / 2.), height / 2.],
-        [0., 0., 1]])
+    K = np.array(
+        [
+            [(width / 2.0) / np.tan(hfov / 2.0), 0.0, width / 2.0],
+            [0.0, (height / 2.0) / np.tan(hfov / 2.0), height / 2.0],
+            [0.0, 0.0, 1],
+        ]
+    )
     return K
 
 
@@ -120,7 +117,7 @@ def get_K_from_agent(agent):
 def find_annotation_path(scene_path):
     # find split name from among ['train', 'val', 'test', 'minival']
     split = None
-    for s in ['train', 'minival', 'val', 'test']:
+    for s in ["train", "minival", "val", "test"]:
         if s in scene_path:
             split = s
             path_till_split = scene_path.split(split)[0]
@@ -131,22 +128,22 @@ def find_annotation_path(scene_path):
         return f"{path_till_split}/{split}/hm3d_annotated_{split}_basis.scene_dataset_config.json"
 
 
-def build_intrinsics(image_width: int,
-                     image_height: int,
-                     field_of_view_radians_u: float,
-                     field_of_view_radians_v: Optional[float] = None,
-                     device='cpu') -> torch.Tensor:
+def build_intrinsics(
+    image_width: int,
+    image_height: int,
+    field_of_view_radians_u: float,
+    field_of_view_radians_v: Optional[float] = None,
+    device="cpu",
+) -> torch.Tensor:
     if field_of_view_radians_v is None:
         field_of_view_radians_v = field_of_view_radians_u
     center_u = image_width / 2
     center_v = image_height / 2
-    fov_u = (image_width / 2.) / np.tan(field_of_view_radians_u / 2.)
-    fov_v = (image_height / 2.) / np.tan(field_of_view_radians_v / 2.)
-    intrinsics = np.array([
-        [fov_u, 0., center_u],
-        [0., fov_v, center_v],
-        [0., 0., 1]
-    ])
+    fov_u = (image_width / 2.0) / np.tan(field_of_view_radians_u / 2.0)
+    fov_v = (image_height / 2.0) / np.tan(field_of_view_radians_v / 2.0)
+    intrinsics = np.array(
+        [[fov_u, 0.0, center_u], [0.0, fov_v, center_v], [0.0, 0.0, 1]]
+    )
     intrinsics = torch.from_numpy(intrinsics).to(device)
     return intrinsics
 
@@ -156,7 +153,7 @@ def split_observations(observations):
     depth = observations["depth_sensor"]
     rgb_img = Image.fromarray(rgb_obs, mode="RGBA")
 
-    display_img = np.array(rgb_img.convert('RGB'))
+    display_img = np.array(rgb_img.convert("RGB"))
     semantic_instance = observations["semantic_sensor"]  # an array of instance ids
     return display_img, depth, semantic_instance.astype(int)
 
@@ -176,7 +173,9 @@ def robohop_to_pixnav_goal_mask(goal_mask: np.ndarray, depth: np.ndarray) -> np.
     return pixnav_goal_mask
 
 
-def unproject_points(depth: torch.Tensor, intrinsics_inv, homogeneous_pts) -> torch.Tensor:
+def unproject_points(
+    depth: torch.Tensor, intrinsics_inv, homogeneous_pts
+) -> torch.Tensor:
     unprojected_points = (torch.matmul(intrinsics_inv, homogeneous_pts)).T
     unprojected_points *= depth
     return unprojected_points
@@ -191,14 +190,12 @@ def has_collided(sim, previous_agent_state, current_agent_state):
         quat_to_magnum(current_agent_state.rotation), current_agent_state.position
     )
     dist_moved_before_filter = (
-            current_rigid_state.translation - previous_rigid_state.translation
+        current_rigid_state.translation - previous_rigid_state.translation
     ).dot()
     end_pos = sim.step_filter(
         previous_rigid_state.translation, current_rigid_state.translation
     )
-    dist_moved_after_filter = (
-            end_pos - previous_rigid_state.translation
-    ).dot()
+    dist_moved_after_filter = (end_pos - previous_rigid_state.translation).dot()
 
     # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
     # collision _didn't_ happen. One such case is going up stairs.  Instead,
@@ -209,13 +206,17 @@ def has_collided(sim, previous_agent_state, current_agent_state):
     return collided
 
 
-def get_traversibility(semantic: torch.Tensor, traversable_classes: list) -> torch.Tensor:
+def get_traversibility(
+    semantic: torch.Tensor, traversable_classes: list
+) -> torch.Tensor:
     return torch.isin(semantic, torch.tensor(traversable_classes)).to(int)
 
 
 def apply_velocity(vel_control, agent, sim, velocity, steer, time_step):
     # Update position
-    forward_vec = habitat_sim.utils.quat_rotate_vector(agent.state.rotation, np.array([0, 0, -1.0]))
+    forward_vec = habitat_sim.utils.quat_rotate_vector(
+        agent.state.rotation, np.array([0, 0, -1.0])
+    )
     new_position = agent.state.position + forward_vec * velocity
 
     # Update rotation
@@ -235,9 +236,7 @@ def apply_velocity(vel_control, agent, sim, velocity, steer, time_step):
     )
 
     # manually integrate the rigid state
-    target_rigid_state = vel_control.integrate_transform(
-        time_step, target_rigid_state
-    )
+    target_rigid_state = vel_control.integrate_transform(time_step, target_rigid_state)
 
     # snap rigid state to navmesh and set state to object/agent
     # calls pathfinder.try_step or self.pathfinder.try_step_no_sliding
@@ -247,18 +246,14 @@ def apply_velocity(vel_control, agent, sim, velocity, steer, time_step):
 
     # set the computed state
     agent_state.position = end_pos
-    agent_state.rotation = quat_from_magnum(
-        target_rigid_state.rotation
-    )
+    agent_state.rotation = quat_from_magnum(target_rigid_state.rotation)
     agent.set_state(agent_state)
 
     # Check if a collision occurred
     dist_moved_before_filter = (
-            target_rigid_state.translation - previous_rigid_state.translation
+        target_rigid_state.translation - previous_rigid_state.translation
     ).dot()
-    dist_moved_after_filter = (
-            end_pos - previous_rigid_state.translation
-    ).dot()
+    dist_moved_after_filter = (end_pos - previous_rigid_state.translation).dot()
 
     # NB: There are some cases where ||filter_end - end_pos|| > 0 when a
     # collision _didn't_ happen. One such case is going up stairs.  Instead,
@@ -272,82 +267,102 @@ def apply_velocity(vel_control, agent, sim, velocity, steer, time_step):
     return agent, sim, collided
 
 
-def log_control(xi: float, yi: float, thetai: float,
-                xj: float, yj: float, thetaj: float,
-                distance_error: float, theta_error: float,
-                theta_control: float, thetaj_current: float) -> None:
-    s = (f'distance error: {distance_error:.11f}, '
-         f'tangent error: {(theta_error * 180 / np.pi):.11f}, '
-         f'xi: {xi:.11f}, yi: {yi:.11f}, thetai: {(thetai * 180 / np.pi):.11f}, '
-         f'xj: {xj:.11f}, yj: {yj:.11f}, thetaj: {(thetaj * 180 / np.pi):.11f}, '
-         f'theta control: {(theta_control * 180 / np.pi):.11f}, '
-         f'theta cumulative: {(thetaj_current * 180 / np.pi):.11f}')
+def log_control(
+    xi: float,
+    yi: float,
+    thetai: float,
+    xj: float,
+    yj: float,
+    thetaj: float,
+    distance_error: float,
+    theta_error: float,
+    theta_control: float,
+    thetaj_current: float,
+) -> None:
+    s = (
+        f"distance error: {distance_error:.11f}, "
+        f"tangent error: {(theta_error * 180 / np.pi):.11f}, "
+        f"xi: {xi:.11f}, yi: {yi:.11f}, thetai: {(thetai * 180 / np.pi):.11f}, "
+        f"xj: {xj:.11f}, yj: {yj:.11f}, thetaj: {(thetaj * 180 / np.pi):.11f}, "
+        f"theta control: {(theta_control * 180 / np.pi):.11f}, "
+        f"theta cumulative: {(thetaj_current * 180 / np.pi):.11f}"
+    )
     logger.info("%s", s)
 
 
 def initialize_results(
-        filename_metadata_episode,
-        filename_results_episode,
-        args,
-        pid_steer_values,
-        hfov_radians,
-        time_delta,
-        velocity_control,
-        goal_position,
-        traversable_categories
+    filename_metadata_episode,
+    filename_results_episode,
+    args,
+    pid_steer_values,
+    hfov_radians,
+    time_delta,
+    velocity_control,
+    goal_position,
+    traversable_categories,
 ):
     # write metadata
-    with open(str(filename_metadata_episode), 'w') as f:
-        f.writelines(f'method={args.method}\n'
-                     f'inferring_depth={args.infer_depth}\n'
-                     f'goal_source={args.goal_source}\n'
-                     f'max steps={args.max_steps}\n'
-                     f'goal distance threshold={args.threshold_goal_distance}\n'
-                     f'steer pid values={pid_steer_values}\n'
-                     f'camera fov={(hfov_radians * 180 / np.pi):.2f}\n'
-                     f'time_delta={time_delta}\n'
-                     f'velocity_control={velocity_control}\n'
-                     f'goal position={list(goal_position) if goal_position is not None else ""}\n'
-                     f'traversable categories={traversable_categories if traversable_categories is not None else ""}\n')
+    with open(str(filename_metadata_episode), "w") as f:
+        f.writelines(
+            f"method={args.method}\n"
+            f"inferring_depth={args.infer_depth}\n"
+            f"goal_source={args.goal_source}\n"
+            f"max steps={args.max_steps}\n"
+            f"goal distance threshold={args.threshold_goal_distance}\n"
+            f"steer pid values={pid_steer_values}\n"
+            f"camera fov={(hfov_radians * 180 / np.pi):.2f}\n"
+            f"time_delta={time_delta}\n"
+            f"velocity_control={velocity_control}\n"
+            f"goal position={list(goal_position) if goal_position is not None else ''}\n"
+            f"traversable categories={traversable_categories if traversable_categories is not None else ''}\n"
+        )
 
-    with open(str(filename_results_episode), 'a') as f:
-        f.writelines(f'step,x,y,z,yaw,distance_to_goal,velocity_control,theta_control,discrete_action,collided\n')
+    with open(str(filename_results_episode), "a") as f:
+        f.writelines(
+            f"step,x,y,z,yaw,distance_to_goal,velocity_control,theta_control,discrete_action,collided\n"
+        )
     return
 
 
-def write_results(filename_results_episode,
-                  step,
-                  current_robot_state,
-                  distance_to_goal,
-                  velocity_control,
-                  theta_control,
-                  collided,
-                  discrete_action
-                  ) -> None:
-    with open(str(filename_results_episode), 'a') as f:
-        f.writelines(f'{step},'
-                     f'{current_robot_state.position[0] if current_robot_state is not None else ""},'
-                     f'{current_robot_state.position[1] if current_robot_state is not None else ""},'
-                     f'{current_robot_state.position[2] if current_robot_state is not None else ""},'
-                     f'{np.arccos(quaternion.as_rotation_matrix(current_robot_state.rotation)[0, 0]) * 180 / np.pi if current_robot_state is not None else ""},'
-                     f'{distance_to_goal},'
-                     f'{velocity_control},'
-                     f'{theta_control * 180 / np.pi},'
-                     f'{discrete_action},'
-                     f'{int(collided) if collided is not None else ""}\n')
+def write_results(
+    filename_results_episode,
+    step,
+    current_robot_state,
+    distance_to_goal,
+    velocity_control,
+    theta_control,
+    collided,
+    discrete_action,
+) -> None:
+    with open(str(filename_results_episode), "a") as f:
+        f.writelines(
+            f"{step},"
+            f"{current_robot_state.position[0] if current_robot_state is not None else ''},"
+            f"{current_robot_state.position[1] if current_robot_state is not None else ''},"
+            f"{current_robot_state.position[2] if current_robot_state is not None else ''},"
+            f"{np.arccos(quaternion.as_rotation_matrix(current_robot_state.rotation)[0, 0]) * 180 / np.pi if current_robot_state is not None else ''},"
+            f"{distance_to_goal},"
+            f"{velocity_control},"
+            f"{theta_control * 180 / np.pi},"
+            f"{discrete_action},"
+            f"{int(collided) if collided is not None else ''}\n"
+        )
 
 
 def write_final_meta_results(
-        filename_metadata_episode: Path,
-        success_status: str,
-        final_distance: float,
-        step: int,
-        distance_to_final_goal):
-    with open(str(filename_metadata_episode), 'a') as f:
-        f.writelines(f'success_status={success_status}\n'
-                     f'final_distance={final_distance}\n'
-                     f'step={step}\n'
-                     f'distance_to_final_goal_from_start={distance_to_final_goal}')
+    filename_metadata_episode: Path,
+    success_status: str,
+    final_distance: float,
+    step: int,
+    distance_to_final_goal,
+):
+    with open(str(filename_metadata_episode), "a") as f:
+        f.writelines(
+            f"success_status={success_status}\n"
+            f"final_distance={final_distance}\n"
+            f"step={step}\n"
+            f"distance_to_final_goal_from_start={distance_to_final_goal}"
+        )
 
 
 def count_edges_with_given_weight(G, edge_weight_str):
@@ -366,8 +381,8 @@ def get_edge_weight_types(G):
 
 def change_edge_attr(G):
     for e in G.edges(data=True):
-        if 'margin' in e[2]:
-            e[2]['margin'] = 0.0
+        if "margin" in e[2]:
+            e[2]["margin"] = 0.0
     return G
 
 
@@ -375,11 +390,10 @@ def norm_minmax(costs, max_val=1):
     costs = costs - costs.min()
     if costs.max() != 0:
         costs = costs / costs.max()
-    return (costs * max_val)
+    return costs * max_val
 
 
 def normalize_pls_new(pls, scale_factor=100, outlier_value=99, new_max_val=None):
-
     outliers = pls >= outlier_value
     # if all are outliers, set them to zero
     if sum(outliers) == len(pls):
@@ -389,7 +403,9 @@ def normalize_pls_new(pls, scale_factor=100, outlier_value=99, new_max_val=None)
     if new_max_val is None:
         new_max_val = pls[~outliers].max() + 1
     else:
-        assert new_max_val > pls[~outliers].max(), f"{new_max_val} <= {pls[~outliers].max()}"
+        assert new_max_val > pls[~outliers].max(), (
+            f"{new_max_val} <= {pls[~outliers].max()}"
+        )
 
     # else set outliers to max value of inliers + 1
     # so that when normalized, they are set to 0
@@ -428,7 +444,7 @@ def normalize_pls(pls, scale_factor=100, outlier_value=99):
     return pls[:-1]
 
 
-def modify_graph(G,nodes,edges):
+def modify_graph(G, nodes, edges):
     G2 = nx.Graph()
     G2.add_nodes_from(nodes)
     G2.add_edges_from(edges)
@@ -439,10 +455,11 @@ def modify_graph(G,nodes,edges):
     print(f"is_connected(G2): {nx.is_connected(G2)}")
     return G2
 
+
 def intersect_tuples(a, b):
     # Convert lists of tuples to structured arrays
-    a_arr = np.array(a, dtype=[('f1', 'int64'), ('f2', 'int64')])
-    b_arr = np.array(b, dtype=[('f1', 'int64'), ('f2', 'int64')])
+    a_arr = np.array(a, dtype=[("f1", "int64"), ("f2", "int64")])
+    b_arr = np.array(b, dtype=[("f1", "int64"), ("f2", "int64")])
 
     # Find the intersection
     intersection = np.intersect1d(a_arr, b_arr)
@@ -450,25 +467,35 @@ def intersect_tuples(a, b):
     # Convert the structured arrays back to list of tuples
     return [tuple(row) for row in intersection]
 
-def getSplitEdgeLists(G,flipSim=True):
+
+def getSplitEdgeLists(G, flipSim=True):
     if not flipSim:
         raise NotImplementedError
-    intraImage_edges = [e for e in G.edges(data=True) if 'sim' not in e[2]]
-    da_edges = [(e[0],e[1],{'sim':1-e[2]['sim']}) for e in G.edges(data=True) if 'sim' in e[2]]
-    temporal_edges = [(e[0],e[1],{'sim':1-e[2]['sim']}) for e in G.graph['temporalEdges']]
+    intraImage_edges = [e for e in G.edges(data=True) if "sim" not in e[2]]
+    da_edges = [
+        (e[0], e[1], {"sim": 1 - e[2]["sim"]})
+        for e in G.edges(data=True)
+        if "sim" in e[2]
+    ]
+    temporal_edges = [
+        (e[0], e[1], {"sim": 1 - e[2]["sim"]}) for e in G.graph["temporalEdges"]
+    ]
 
     # find intersection between da_edges and temporal_edges
-    da_edges_noAttr = [tuple(sorted((e[0],e[1]))) for e in da_edges]
-    temporal_edges_noAttr = [tuple(sorted((e[0],e[1]))) for e in temporal_edges]
-    intersection = intersect_tuples(da_edges_noAttr,temporal_edges_noAttr)
+    da_edges_noAttr = [tuple(sorted((e[0], e[1]))) for e in da_edges]
+    temporal_edges_noAttr = [tuple(sorted((e[0], e[1]))) for e in temporal_edges]
+    intersection = intersect_tuples(da_edges_noAttr, temporal_edges_noAttr)
     numCommon = len(intersection)
 
     print(f"Number of intraImage_edges: {len(intraImage_edges)}")
     print(f"Number of da_edges: {len(da_edges)}")
     print(f"Number of temporal_edges: {len(temporal_edges)}")
-    print(f"Number of non-intersecting edges (ideally 0): {len(temporal_edges)-numCommon}")
+    print(
+        f"Number of non-intersecting edges (ideally 0): {len(temporal_edges) - numCommon}"
+    )
 
     return intraImage_edges, da_edges, temporal_edges
+
 
 def mask_to_rle_numpy(array: np.ndarray) -> List[Dict[str, Any]]:
     """
@@ -500,6 +527,7 @@ def mask_to_rle_numpy(array: np.ndarray) -> List[Dict[str, Any]]:
         out.append({"size": [h, w], "counts": counts})
     return out
 
+
 def rle_to_mask(rle) -> np.ndarray:
     """Compute a binary mask from an uncompressed RLE."""
     h, w = rle["size"]
@@ -513,34 +541,39 @@ def rle_to_mask(rle) -> np.ndarray:
     mask = mask.reshape(w, h)
     return mask.transpose()  # Put in C order
 
+
 def nodes2key(nodeInds, key, G=None):
     _key = key
-    if key == 'coords':
-        _key = 'segmentation'
-    if isinstance(nodeInds[0],dict):
-        if _key == 'segmentation' and type(nodeInds[0][_key]) == dict:
+    if key == "coords":
+        _key = "segmentation"
+    if isinstance(nodeInds[0], dict):
+        if _key == "segmentation" and type(nodeInds[0][_key]) == dict:
             values = np.array([rle_to_mask(n[_key]) for n in nodeInds])
         else:
             values = np.array([n[_key] for n in nodeInds])
     else:
         assert G is not None, "nodes can either be dict or indices of nx.Graph"
-        if _key == 'segmentation' and type(G.nodes[nodeInds[0]][_key]) == dict:
+        if _key == "segmentation" and type(G.nodes[nodeInds[0]][_key]) == dict:
             values = np.array([rle_to_mask(G.nodes[n][_key]) for n in nodeInds])
         else:
             values = np.array([G.nodes[n][_key] for n in nodeInds])
-    if key == 'coords':
-        values = np.array([np.array(np.nonzero(v)).mean(1)[::-1].astype(int) for v in values])
+    if key == "coords":
+        values = np.array(
+            [np.array(np.nonzero(v)).mean(1)[::-1].astype(int) for v in values]
+        )
     return values
 
 
-def get_sim_settings(scene, default_agent=0, sensor_height=1.5, width=256, height=256, hfov=90):
+def get_sim_settings(
+    scene, default_agent=0, sensor_height=1.5, width=256, height=256, hfov=90
+):
     sim_settings = {
         "scene": scene,  # Scene path
         "default_agent": default_agent,  # Index of the default agent
         "sensor_height": sensor_height,  # Height of sensors in meters, relative to the agent
         "width": width,  # Spatial resolution of the observations
         "height": height,
-        "hfov": hfov
+        "hfov": hfov,
     }
     return sim_settings
 
@@ -569,13 +602,19 @@ def make_simple_cfg(settings):
     # hardware_config.height = 20  # Setting the height to 1.6 meters
     # hardware_config.radius = 10  # Setting the radius to 0.2 meters
     # discrete actions defined for objectnav task in habitat-lab/habitat/config/habitat/task/objectnav.yaml
-    custom_action_dict = {'stop': habitat_sim.ActionSpec(name='move_forward', actuation=habitat_sim.ActuationSpec(amount=0))}
+    custom_action_dict = {
+        "stop": habitat_sim.ActionSpec(
+            name="move_forward", actuation=habitat_sim.ActuationSpec(amount=0)
+        )
+    }
     for k in hardware_config.action_space.keys():
         custom_action_dict[k] = hardware_config.action_space[k]
-    custom_action_dict['look_up'] = habitat_sim.ActionSpec(name='look_up',
-                                                           actuation=habitat_sim.ActuationSpec(amount=30))
-    custom_action_dict['look_down'] = habitat_sim.ActionSpec(name='look_down',
-                                                             actuation=habitat_sim.ActuationSpec(amount=30))
+    custom_action_dict["look_up"] = habitat_sim.ActionSpec(
+        name="look_up", actuation=habitat_sim.ActuationSpec(amount=30)
+    )
+    custom_action_dict["look_down"] = habitat_sim.ActionSpec(
+        name="look_down", actuation=habitat_sim.ActuationSpec(amount=30)
+    )
 
     hardware_config.action_space = custom_action_dict
     # In the 1st example, we attach only one sensor,
@@ -602,13 +641,31 @@ def make_simple_cfg(settings):
     semantic_sensor_spec.position = [0.0, settings["sensor_height"], 0.0]
     semantic_sensor_spec.hfov = settings["hfov"]
 
-    hardware_config.sensor_specifications = [rgb_sensor_spec, depth_sensor_spec, semantic_sensor_spec]
+    hardware_config.sensor_specifications = [
+        rgb_sensor_spec,
+        depth_sensor_spec,
+        semantic_sensor_spec,
+    ]
 
     return habitat_sim.Configuration(sim_cfg, [hardware_config])
 
 
-def get_sim_agent(test_scene, updateNavMesh=False, agent_radius=0.75, width=320, height=240, hfov=90, sensor_height=1.5):
-    sim_settings = get_sim_settings(scene=test_scene, width=width, height=height,  hfov=hfov, sensor_height=sensor_height)
+def get_sim_agent(
+    test_scene,
+    updateNavMesh=False,
+    agent_radius=0.75,
+    width=320,
+    height=240,
+    hfov=90,
+    sensor_height=1.5,
+):
+    sim_settings = get_sim_settings(
+        scene=test_scene,
+        width=width,
+        height=height,
+        hfov=hfov,
+        sensor_height=sensor_height,
+    )
     cfg = make_simple_cfg(sim_settings)
     sim = habitat_sim.Simulator(cfg)
 
@@ -675,12 +732,12 @@ def navigateAndSee(action, action_names, sim, display=False):
 
 # Function to translate keyboard commands to action strings
 def map_keyB2Act(key_command):
-    if key_command == 'w':
-        action = 'move_forward'
-    elif key_command == 'a':
-        action = 'turn_left'
-    elif key_command == 'd':
-        action = 'turn_right'
+    if key_command == "w":
+        action = "move_forward"
+    elif key_command == "a":
+        action = "turn_left"
+    elif key_command == "d":
+        action = "turn_right"
     else:
         return None
     return action
@@ -693,12 +750,12 @@ def get_kb_command():
 
     key_command = stdscr.getch()
     key_mapping = {
-        ord('w'): 'w',
-        ord('a'): 'a',
-        ord('d'): 'd',
-        curses.KEY_UP: 'w',
-        curses.KEY_LEFT: 'a',
-        curses.KEY_RIGHT: 'd'
+        ord("w"): "w",
+        ord("a"): "a",
+        ord("d"): "d",
+        curses.KEY_UP: "w",
+        curses.KEY_LEFT: "a",
+        curses.KEY_RIGHT: "d",
     }
     command = key_mapping.get(key_command)
 
@@ -719,14 +776,15 @@ def createTimestampedFolderPath(outdir, prefix, subfolder="", excTime=False):
     :return: paths to the created folder and subfolders
     """
     current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime('%Y%m%d%H%M%S%f')
-    if excTime: formatted_time = ""
-    folder_path = f'{outdir}/{prefix}_{formatted_time}'
+    formatted_time = current_time.strftime("%Y%m%d%H%M%S%f")
+    if excTime:
+        formatted_time = ""
+    folder_path = f"{outdir}/{prefix}_{formatted_time}"
     if type(subfolder) == str:
         subfolder = [subfolder]
     sfPaths = []
     for sf in subfolder:
-        subfolder_path = f'{outdir}/{prefix}_{formatted_time}/{sf}'
+        subfolder_path = f"{outdir}/{prefix}_{formatted_time}/{sf}"
         os.makedirs(subfolder_path, exist_ok=True)
         sfPaths.append(subfolder_path)
     return folder_path, *sfPaths
@@ -757,7 +815,9 @@ def compute_pose_err(s1, s2):
     :return: (float, float) position error, rotation error (degrees)
     """
     pos_err = np.linalg.norm(s1.position - s2.position)
-    rot_err = np.rad2deg(quaternion.rotation_intrinsic_distance(s1.rotation, s2.rotation))
+    rot_err = np.rad2deg(
+        quaternion.rotation_intrinsic_distance(s1.rotation, s2.rotation)
+    )
     return pos_err, rot_err
 
 
@@ -765,7 +825,7 @@ def compute_pose_err(s1, s2):
 def findAnnotationPath(scenePath):
     # find split name from among ['train', 'val', 'test', 'minival']
     split = None
-    for s in ['train', 'minival', 'val', 'test']:  # TODO: 'val' inside 'minival'
+    for s in ["train", "minival", "val", "test"]:  # TODO: 'val' inside 'minival'
         if s in scenePath:
             split = s
             pathTillSplit = scenePath.split(split)[0]
@@ -774,6 +834,7 @@ def findAnnotationPath(scenePath):
         return None
     else:
         return f"{pathTillSplit}/{split}/hm3d_annotated_{split}_basis.scene_dataset_config.json"
+
 
 def print_regions(regions, max_regions=10, max_objects=10):
     region_count = 0
@@ -796,17 +857,19 @@ def print_regions(regions, max_regions=10, max_objects=10):
         if region_count >= max_regions:
             break
 
+
 def print_scene_recur(scene, limit_output=10):
-    print(f"House has {len(scene.levels)} levels, {len(scene.regions)} regions and {len(scene.objects)} objects")
+    print(
+        f"House has {len(scene.levels)} levels, {len(scene.regions)} regions and {len(scene.objects)} objects"
+    )
     print(f"House center:{scene.aabb.center} dims:{scene.aabb.sizes}")
 
     for level in scene.levels:
         print(
-            f"Level id:{level.id}, center:{level.aabb.center},"
-            f" dims:{level.aabb.sizes}"
+            f"Level id:{level.id}, center:{level.aabb.center}, dims:{level.aabb.sizes}"
         )
         print_regions(level.regions, limit_output, limit_output)
-    
+
     if len(scene.levels) == 0:
         print_regions(scene.regions, limit_output, limit_output)
 
@@ -815,25 +878,34 @@ def print_scene_recur(scene, limit_output=10):
     # scene = sim.semantic_scene
     # print_scene_recur(scene)
 
+
 def obj_id_to_int(obj):
     return int(obj.id.split("_")[-1])
 
+
 def get_instance_to_category_mapping(semanticScene):
     instance_id_to_label_id = np.array(
-        [[obj_id_to_int(obj), obj.category.index()] for obj in semanticScene.objects])
+        [[obj_id_to_int(obj), obj.category.index()] for obj in semanticScene.objects]
+    )
     return instance_id_to_label_id
 
 
 def get_instance_index_to_name_mapping(semanticScene):
-    instance_index_to_name = np.array([[i, obj.category.name()] for i, obj in enumerate(semanticScene.objects)])
+    instance_index_to_name = np.array(
+        [[i, obj.category.name()] for i, obj in enumerate(semanticScene.objects)]
+    )
     return instance_index_to_name
 
+
 def get_instance_id_to_region_id_mapping(semantic_scene):
-    instance_index_to_region_id = np.array([[obj_id_to_int(obj), int(obj.region.id[1:])] for obj in semantic_scene.objects])
+    instance_index_to_region_id = np.array(
+        [[obj_id_to_int(obj), int(obj.region.id[1:])] for obj in semantic_scene.objects]
+    )
 
     # check if object ids iterate exactly over total objects
-    assert(instance_index_to_region_id[-1, 0] == len(semantic_scene.objects) - 1)
+    assert instance_index_to_region_id[-1, 0] == len(semantic_scene.objects) - 1
     return instance_index_to_region_id
+
 
 def get_region_id_to_instance_id_dict(semantic_scene):
     region_id_to_instance_id = {}
@@ -844,6 +916,7 @@ def get_region_id_to_instance_id_dict(semantic_scene):
             instance_id = int(instance.id.split("_")[-1])
             region_id_to_instance_id[region_key].append(instance_id)
     return region_id_to_instance_id
+
 
 def get_instance_id_to_all_dict(semantic_scene, save_explicit_dict=False):
     instance_id_to_all = {}
@@ -864,19 +937,22 @@ def get_instance_id_to_all_dict(semantic_scene, save_explicit_dict=False):
         instance_id_to_all[instance_id] = instance
     return instance_id_to_all
 
-def sample_goal_instances_across_regions(semantic_scene, seed=None):
 
+def sample_goal_instances_across_regions(semantic_scene, seed=None):
     if seed is not None:
         np.random.seed(seed)
 
-    cat_to_avoid = ['Unknown', 'wall', 'ceiling', 'floor']
+    cat_to_avoid = ["Unknown", "wall", "ceiling", "floor"]
     goal_instance_ids = []
     goal_instance_coords = []
     print("Num regions:", len(semantic_scene.regions))
     for region in semantic_scene.regions:
-
         # sample an instance not in cat_to_avoid
-        instances_filtered = [insta for insta in region.objects if insta.category.name() not in cat_to_avoid]
+        instances_filtered = [
+            insta
+            for insta in region.objects
+            if insta.category.name() not in cat_to_avoid
+        ]
         if len(instances_filtered) == 0:
             continue
         instance = np.random.choice(instances_filtered, replace=False)
@@ -884,19 +960,23 @@ def sample_goal_instances_across_regions(semantic_scene, seed=None):
         goal_instance_ids.append(obj_id_to_int(instance))
         goal_instance_coords.append(instance_coords)
 
-        print(f"Region: {region.id}, Instance: {goal_instance_ids[-1]}, Category: {instance.category.name()}, coords: {instance_coords}, region center: {region.aabb.center}")
+        print(
+            f"Region: {region.id}, Instance: {goal_instance_ids[-1]}, Category: {instance.category.name()}, coords: {instance_coords}, region center: {region.aabb.center}"
+        )
 
     return goal_instance_ids, goal_instance_coords
 
-def sample_goal_instances_across_regions_indirect(semantic_scene, num_goals=2, repeat_regions=False):
 
-    cat_to_avoid = ['Unknown', 'wall', 'ceiling', 'floor']
+def sample_goal_instances_across_regions_indirect(
+    semantic_scene, num_goals=2, repeat_regions=False
+):
+    cat_to_avoid = ["Unknown", "wall", "ceiling", "floor"]
     reg_to_insta_dict = get_region_id_to_instance_id_dict(semantic_scene)
     insta_to_cat_map = get_instance_index_to_name_mapping(semantic_scene)
     insta_to_all_dict = get_instance_id_to_all_dict(semantic_scene)
 
     # sample regions
-    num_extra_samples = 5 # to avoid regions with no filtered instances
+    num_extra_samples = 5  # to avoid regions with no filtered instances
     reg_ids = list(reg_to_insta_dict.keys())
     num_regions_to_sample = min(num_goals + num_extra_samples, len(reg_ids))
     reg_ids = np.random.choice(reg_ids, num_regions_to_sample, replace=repeat_regions)
@@ -910,7 +990,11 @@ def sample_goal_instances_across_regions_indirect(semantic_scene, num_goals=2, r
 
         # sample an instance not in cat_to_avoid
         insta_ids = reg_to_insta_dict[reg_id]
-        insta_ids_filtered = [insta_id for insta_id in insta_ids if insta_to_cat_map[insta_id][1] not in cat_to_avoid]
+        insta_ids_filtered = [
+            insta_id
+            for insta_id in insta_ids
+            if insta_to_cat_map[insta_id][1] not in cat_to_avoid
+        ]
         if len(insta_ids_filtered) == 0:
             continue
         insta_id = np.random.choice(insta_ids_filtered)
@@ -918,7 +1002,9 @@ def sample_goal_instances_across_regions_indirect(semantic_scene, num_goals=2, r
         goal_instance_ids.append(insta_id)
         goal_instance_coords.append(insta_coords)
 
-        print(f"Region: {reg_id}, Instance: {insta_id}, Category: {insta_to_cat_map[insta_id][1]}, coords: {insta_coords}, region center: {semantic_scene.regions[reg_id].aabb.center}")
+        print(
+            f"Region: {reg_id}, Instance: {insta_id}, Category: {insta_to_cat_map[insta_id][1]}, coords: {insta_coords}, region center: {semantic_scene.regions[reg_id].aabb.center}"
+        )
 
     return goal_instance_ids, goal_instance_coords
 
@@ -927,7 +1013,9 @@ def obs_from_state(episode, state, sensor="color_sensor"):
     episode.agent.set_state(state)
     observations = episode.sim.get_sensor_observations()
     if sensor == "color_sensor":
-        obs = np.array(Image.fromarray(observations["color_sensor"], mode="RGBA").convert('RGB'))
+        obs = np.array(
+            Image.fromarray(observations["color_sensor"], mode="RGBA").convert("RGB")
+        )
     else:
         obs = observations[sensor]
     return obs
@@ -944,17 +1032,20 @@ def getImg(sim):
 
 
 def get_hm3d_scene_name_from_episode_path(path_episode, path_scenes_root_hm3d):
-    episode_name = path_episode.parts[-1].split('_')[0]
-    path_scene_hm3d = sorted(path_scenes_root_hm3d.glob(f'*{episode_name}'))[0]
-    scene_name_hm3d = str(sorted(path_scene_hm3d.glob('*basis.glb'))[0])
+    episode_name = path_episode.parts[-1].split("_")[0]
+    path_scene_hm3d = sorted(path_scenes_root_hm3d.glob(f"*{episode_name}"))[0]
+    scene_name_hm3d = str(sorted(path_scene_hm3d.glob("*basis.glb"))[0])
     return scene_name_hm3d
 
 
 def create_results_summary(args, results_summary, path_results_folder):
     # Calculate success rate
-    results_summary['success_rate'] = (results_summary['successful_episodes'] /
-                                       results_summary['total_episodes']) * 100 if results_summary[
-                                                                                       'total_episodes'] > 0 else 0
+    results_summary["success_rate"] = (
+        (results_summary["successful_episodes"] / results_summary["total_episodes"])
+        * 100
+        if results_summary["total_episodes"] > 0
+        else 0
+    )
 
     # Print and save results summary
     print("\n--- Results Summary ---")
@@ -964,27 +1055,27 @@ def create_results_summary(args, results_summary, path_results_folder):
     print(f"Success Rate: {results_summary['success_rate']:.2f}%")
 
     print("\nFailure Reasons:")
-    for reason, count in results_summary['failure_reasons'].items():
+    for reason, count in results_summary["failure_reasons"].items():
         print(f"  {reason}: {count}")
 
     # Save results to CSV
     if args.log_robot:
-        results_csv_path = path_results_folder / 'results_summary.csv'
-        with open(results_csv_path, 'w', newline='') as csvfile:
+        results_csv_path = path_results_folder / "results_summary.csv"
+        with open(results_csv_path, "w", newline="") as csvfile:
             csvwriter = csv.writer(csvfile)
-            csvwriter.writerow(['Metric', 'Value'])
+            csvwriter.writerow(["Metric", "Value"])
+            csvwriter.writerow(["Total Episodes", results_summary["total_episodes"]])
             csvwriter.writerow(
-                ['Total Episodes', results_summary['total_episodes']])
+                ["Successful Episodes", results_summary["successful_episodes"]]
+            )
+            csvwriter.writerow(["Failed Episodes", results_summary["failed_episodes"]])
             csvwriter.writerow(
-                ['Successful Episodes', results_summary['successful_episodes']])
-            csvwriter.writerow(
-                ['Failed Episodes', results_summary['failed_episodes']])
-            csvwriter.writerow(
-                ['Success Rate (%)', f"{results_summary['success_rate']:.2f}"])
+                ["Success Rate (%)", f"{results_summary['success_rate']:.2f}"]
+            )
 
             csvwriter.writerow([])
-            csvwriter.writerow(['Failure Reasons'])
-            for reason, count in results_summary['failure_reasons'].items():
+            csvwriter.writerow(["Failure Reasons"])
+            for reason, count in results_summary["failure_reasons"].items():
                 csvwriter.writerow([reason, count])
 
     return results_summary

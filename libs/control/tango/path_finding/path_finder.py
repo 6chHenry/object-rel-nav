@@ -9,7 +9,7 @@ class Search:
         self.graph = CostMapGrid(width=width, height=height, cost_map=cost_map)
         self.came_from = dict()
         self.cost_so_far = dict()
-        self.dist_scaler = np.sqrt(width ** 2 + height ** 2)
+        self.dist_scaler = np.sqrt(width**2 + height**2)
 
     def get_path(self, start: tuple, goal: tuple) -> np.ndarray:
         current = goal
@@ -24,11 +24,12 @@ class Search:
     def heuristic(self, current: tuple, goal: tuple) -> float:
         x1, y1 = current
         x2, y2 = goal
-        return np.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2).item()  # prioritize movement that is closer to goal
+        return np.sqrt(
+            (x2 - x1) ** 2 + (y2 - y1) ** 2
+        ).item()  # prioritize movement that is closer to goal
 
 
 class Dijkstra(Search):
-
     def search(self, start: tuple, goal: tuple):
         self.frontier.put(start, 0)
         self.came_from[start] = None
@@ -38,7 +39,9 @@ class Dijkstra(Search):
             if current == goal:
                 break
             for next in self.graph.neighbours(current):
-                new_cost = self.cost_so_far[current] + self.graph.cost(current, next, start, goal)
+                new_cost = self.cost_so_far[current] + self.graph.cost(
+                    current, next, start, goal
+                )
                 if next not in self.came_from or new_cost < self.cost_so_far[next]:
                     self.cost_so_far[next] = new_cost
                     priority = new_cost
@@ -47,7 +50,6 @@ class Dijkstra(Search):
 
 
 class AStar(Search):
-
     def search(self, start: tuple, goal: tuple):
         self.frontier.put(start, 0)
         self.came_from[start] = None
@@ -58,7 +60,9 @@ class AStar(Search):
             if current == goal:
                 break
             for next in self.graph.neighbours(current):
-                new_cost = self.cost_so_far[current] + self.graph.cost(current, next, start, goal)
+                new_cost = self.cost_so_far[current] + self.graph.cost(
+                    current, next, start, goal
+                )
 
                 if next not in self.came_from or new_cost < self.cost_so_far[next]:
                     self.cost_so_far[next] = new_cost

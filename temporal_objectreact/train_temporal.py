@@ -21,6 +21,7 @@ training configs, with three extra top-level keys:
     noise_mode: zero              # zero | gauss
     init_from: <path/to/latest.pth>  # optional warm-start
 """
+
 from __future__ import annotations
 
 import argparse
@@ -156,8 +157,17 @@ def waypoint_loss(action_pred, action_label, mask, learn_angle):
 # ---------------------------------------------------------------------------
 # Training loop
 # ---------------------------------------------------------------------------
-def run_epoch(model, loader, optimizer, device, transform, *, train: bool,
-              log_every: int = 50, max_iters: int | None = None):
+def run_epoch(
+    model,
+    loader,
+    optimizer,
+    device,
+    transform,
+    *,
+    train: bool,
+    log_every: int = 50,
+    max_iters: int | None = None,
+):
     model.train(mode=train)
     total_loss, n = 0.0, 0
     t0 = time.time()
@@ -180,7 +190,9 @@ def run_epoch(model, loader, optimizer, device, transform, *, train: bool,
         action_mask = action_mask.to(device, non_blocking=True)
 
         # Apply the same vis-stripping the upstream training loop does.
-        goal_image, _viz = get_goal_image(goal_image, "image_mask_enc", transform, device)
+        goal_image, _viz = get_goal_image(
+            goal_image, "image_mask_enc", transform, device
+        )
         obs_image = transform(obs_image)
 
         with torch.set_grad_enabled(train):
@@ -198,9 +210,9 @@ def run_epoch(model, loader, optimizer, device, transform, *, train: bool,
         n += obs_image.size(0)
         if (i + 1) % log_every == 0:
             print(
-                f"  step {i+1:5d} | loss {loss.item():.5f} | "
+                f"  step {i + 1:5d} | loss {loss.item():.5f} | "
                 f"avg {total_loss / n:.5f} | "
-                f"{(i+1) / max(time.time() - t0, 1e-6):.2f} it/s"
+                f"{(i + 1) / max(time.time() - t0, 1e-6):.2f} it/s"
             )
 
     avg = total_loss / max(n, 1)
@@ -210,11 +222,16 @@ def run_epoch(model, loader, optimizer, device, transform, *, train: bool,
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", required=True)
-    ap.add_argument("--out", default=None,
-                    help="output dir; defaults to logs/<run_name>")
+    ap.add_argument(
+        "--out", default=None, help="output dir; defaults to logs/<run_name>"
+    )
     ap.add_argument("--device", default="cuda:0")
-    ap.add_argument("--max_iters", type=int, default=None,
-                    help="cap iterations per epoch (useful for smoke tests)")
+    ap.add_argument(
+        "--max_iters",
+        type=int,
+        default=None,
+        help="cap iterations per epoch (useful for smoke tests)",
+    )
     args = ap.parse_args()
 
     with open(args.config, "r") as f:
@@ -226,7 +243,8 @@ def main():
         yaml.safe_dump(config, f)
 
     seed = config.get("seed", 42)
-    np.random.seed(seed); torch.manual_seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
     torch.backends.cudnn.benchmark = True
 
     kwargs = {
@@ -249,18 +267,22 @@ def main():
     print("Building model…")
     model = build_model(config, kwargs).to(args.device)
     n_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"  trainable params: {n_train/1e6:.2f}M")
+    print(f"  trainable params: {n_train / 1e6:.2f}M")
 
     # EMA aggregator + frozen backbone → no learnable params. Skip training and
     # dump the init weights so eval has a checkpoint to load.
     if n_train == 0:
-        print("[train_temporal] no trainable params; saving init checkpoint and exiting.")
-        torch.save({"model": model.state_dict(), "epoch": 0},
-                   out_dir / "latest.pth")
-        torch.save({"model": model.state_dict(), "epoch": 0},
-                   out_dir / "epoch_001.pth")
+        print(
+            "[train_temporal] no trainable params; saving init checkpoint and exiting."
+        )
+        torch.save({"model": model.state_dict(), "epoch": 0}, out_dir / "latest.pth")
+        torch.save({"model": model.state_dict(), "epoch": 0}, out_dir / "epoch_001.pth")
         with open(out_dir / "history.json", "w") as f:
-            json.dump([{"epoch": 0, "train_loss": None, "note": "no trainable params"}], f, indent=2)
+            json.dump(
+                [{"epoch": 0, "train_loss": None, "note": "no trainable params"}],
+                f,
+                indent=2,
+            )
         print(f"Done. checkpoint in {out_dir}")
         return
 
@@ -271,31 +293,45 @@ def main():
 
     # We do the input normalisation that upstream applies in train_eval_loop.
     from torchvision import transforms as T
+
     transform = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
     history = []
     epochs = int(config.get("epochs", 30))
     for epoch in range(epochs):
-        print(f"\n=== Epoch {epoch+1}/{epochs} ===")
+        print(f"\n=== Epoch {epoch + 1}/{epochs} ===")
         train_loss = run_epoch(
-            model, train_loader, optim, args.device, transform,
-            train=True, max_iters=args.max_iters,
+            model,
+            train_loader,
+            optim,
+            args.device,
+            transform,
+            train=True,
+            max_iters=args.max_iters,
         )
         line = {"epoch": epoch + 1, "train_loss": train_loss}
         for name, dl in test_loaders.items():
             val_loss = run_epoch(
-                model, dl, optim, args.device, transform,
-                train=False, max_iters=args.max_iters,
+                model,
+                dl,
+                optim,
+                args.device,
+                transform,
+                train=False,
+                max_iters=args.max_iters,
             )
             line[f"val_{name}"] = val_loss
         history.append(line)
         with open(out_dir / "history.json", "w") as f:
             json.dump(history, f, indent=2)
-        torch.save({"model": model.state_dict(), "epoch": epoch},
-                   out_dir / "latest.pth")
+        torch.save(
+            {"model": model.state_dict(), "epoch": epoch}, out_dir / "latest.pth"
+        )
         if (epoch + 1) % config.get("save_every", 5) == 0:
-            torch.save({"model": model.state_dict(), "epoch": epoch},
-                       out_dir / f"epoch_{epoch+1:03d}.pth")
+            torch.save(
+                {"model": model.state_dict(), "epoch": epoch},
+                out_dir / f"epoch_{epoch + 1:03d}.pth",
+            )
         print("  ", json.dumps(line))
 
     print(f"\nDone. checkpoints in {out_dir}")

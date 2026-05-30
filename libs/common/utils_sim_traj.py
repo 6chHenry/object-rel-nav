@@ -102,7 +102,6 @@ def get_incremental_shortest_path(sim, points, init_idx=0, floor_height_desired=
 
 
 def get_tsp_path(sim, points, init_idx=0, floor_height_desired=None):
-
     G = nx.Graph()
     paths = {}
     for i in range(len(points)):
@@ -1210,7 +1209,6 @@ def get_pathlength_GT(
     display=False,
     instaIdx2catName=None,
 ):
-
     H, W = depth.shape
     areaThresh = int(np.ceil(0.001 * H * W))
     curr_state = agent.get_state()
