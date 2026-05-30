@@ -72,7 +72,7 @@ Temporal model checkpoints:
 |---|---|---:|
 | gated GRU | `logs/temporal_gated_gru/latest.pth` | `noise_p=0.2` |
 | reliability gated GRU | `logs/temporal_reliability_gated_gru/latest.pth` | `noise_p=0.2` |
-| plain GRU | `logs/temporal_gru/latest.pth` | `noise_p=0.2` |
+| plain GRU | `logs/temporal_gru/latest.pth` | `noise_p=0.0` |
 | temporal EMA | no checkpoint required | parameter-free aggregator |
 
 The plain GRU config exists at
@@ -162,6 +162,12 @@ Imitate but fails badly on Shortcut.
 
 The following local runs use the fuller `step_idx=3` protocol and include
 Alt-Goal. These rows are comparable with each other.
+
+All values in this table are blacklist-filtered metrics from
+`scripts/evaluate_objecreact.py`, not the raw `eval_runner` terminal summaries.
+For example, plain GRU Alt-Goal has raw success `18/36 = 50.00%`, but after
+removing the configured 13 blacklisted episodes it is reported as
+`15/23 = 65.22%`.
 
 | Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg Success | Avg SPL | Avg Soft SPL |
 |---|---:|---:|---:|---:|---:|---:|---:|
