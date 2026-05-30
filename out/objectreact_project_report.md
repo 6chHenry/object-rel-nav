@@ -27,8 +27,8 @@ across four evaluation conditions:
 | Method | Description | Status |
 |---|---|---|
 | ObjectReact / single frame | Original ObjectReact behavior using the current frame only | Completed in colleague temporal-grid report |
-| temporal EMA | Parameter-free EMA over adjacent temporal costmap features | Temporarily filled from `../temporal.md`; should be rerun under the final full protocol |
-| plain GRU | Learned temporal GRU aggregator without confidence gate | Temporarily filled from `../temporal.md`; local checkpoint not found |
+| temporal EMA | Parameter-free EMA over adjacent temporal costmap features | Completed under the local full protocol |
+| plain GRU | Learned temporal GRU aggregator without confidence gate | Completed under the local full protocol |
 | gated GRU | GRU with cosine-confidence gate against a running EMA state | Completed |
 | reliability gated GRU | GRU with a learned reliability gate | Completed |
 
@@ -72,13 +72,12 @@ Temporal model checkpoints:
 |---|---|---:|
 | gated GRU | `logs/temporal_gated_gru/latest.pth` | `noise_p=0.2` |
 | reliability gated GRU | `logs/temporal_reliability_gated_gru/latest.pth` | `noise_p=0.2` |
-| plain GRU | `logs/temporal_gru/latest.pth` | not found locally |
+| plain GRU | `logs/temporal_gru/latest.pth` | `noise_p=0.2` |
 | temporal EMA | no checkpoint required | parameter-free aggregator |
 
 The plain GRU config exists at
-`temporal_objectreact/configs/train/temporal_gru.yaml`, but no completed local
-checkpoint or evaluation result was found. The temporary plain-GRU numbers in
-this report therefore come from the colleague report at `../temporal.md`.
+`temporal_objectreact/configs/train/temporal_gru.yaml`, and the local checkpoint
+exists at `logs/temporal_gru/latest.pth`.
 
 Temporal EMA is parameter-free. It can be evaluated directly with
 `controller.temporal_aggregator=ema` and no `controller.load_run`; the upstream
@@ -88,8 +87,8 @@ ObjectReact encoder/head weights are reused.
 
 There are currently two evaluation protocols in the report.
 
-The local full evaluation protocol used for gated GRU and reliability gated GRU
-is:
+The local full evaluation protocol used for temporal EMA, plain GRU, gated GRU,
+and reliability gated GRU is:
 
 ```text
 dataset: data/hm3d_iin_val
@@ -105,8 +104,8 @@ metric script: scripts/evaluate_objecreact.py
 blacklist source: configs/defaults.yaml
 ```
 
-The temporary temporal EMA / plain GRU baseline numbers are taken from
-`../temporal.md`. That report uses:
+The small-protocol temporal-grid numbers are taken from `../temporal.md`.
+That report uses:
 
 ```text
 step_idx: 10
@@ -120,9 +119,9 @@ episodes per task: about 9-11
 ```
 
 Because the temporary temporal-grid numbers use a smaller episode subset and do
-not include Alt-Goal, they should be treated as provisional. The final paper
-table should rerun temporal EMA, plain GRU, gated GRU, and reliability gated GRU
-under one shared protocol before making a strict ranking claim.
+not include Alt-Goal, they should be treated as early small-protocol evidence.
+Temporal EMA, plain GRU, gated GRU, and reliability gated GRU have now all been
+evaluated under the local full protocol.
 
 The four task settings are:
 
@@ -159,20 +158,23 @@ selectively suppress frames that disagree with recent history. Plain GRU also
 shows that learnable temporal memory alone is not sufficient: it improves
 Imitate but fails badly on Shortcut.
 
-## Local Full-Protocol GRU Results
+## Local Full-Protocol Temporal Results
 
 The following local runs use the fuller `step_idx=3` protocol and include
-Alt-Goal. They should not be averaged together with the temporary table above
-until temporal EMA and plain GRU are rerun under the same full protocol.
+Alt-Goal. These rows are comparable with each other.
 
 | Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg Success | Avg SPL | Avg Soft SPL |
 |---|---:|---:|---:|---:|---:|---:|---:|
+| temporal EMA | 75.76 | 69.57 | 57.69 | 63.33 | 66.59 | 66.58 | 75.95 |
+| plain GRU | 75.76 | 65.22 | 61.54 | 66.67 | 67.30 | 67.30 | 75.73 |
 | gated GRU | 72.73 | 47.83 | 61.54 | 63.33 | 61.36 | 61.35 | 72.50 |
 | reliability gated GRU | 60.61 | 65.22 | 50.00 | 66.67 | 60.63 | 60.62 | 72.09 |
 
-Reliability gated GRU improves over gated GRU on Alt-Goal and Reverse, but loses
-on Imitate and Shortcut. Its overall average is therefore similar to gated GRU
-rather than clearly better.
+Under the current full protocol, plain GRU has the strongest average Success
+and SPL among the completed temporal methods, while temporal EMA has the best
+average Soft SPL. Gated GRU ties plain GRU on Shortcut but drops on Alt-Goal.
+Reliability gated GRU ties plain GRU on Alt-Goal and Reverse, but loses on
+Imitate and Shortcut.
 
 ## Separate Costmap EMA Exploration
 
@@ -210,6 +212,8 @@ The completed GRU results were checked against the following conditions:
 - Re-running `scripts/evaluate_objecreact.py` on the selected result folders
   reproduces the table values.
 - Incomplete duplicate runs were excluded from the table.
+  This includes the one-episode duplicate directory
+  `out/results/alt_goal/temporal_alt_goal_gru/val/hard/20260530-13-17-11_learnt_temporal_gt_topometric`.
 
 One caveat remains: in the Shortcut task, one non-blacklisted episode has
 metadata but no `success_status`. The existing evaluation script keeps it in
@@ -217,29 +221,9 @@ the denominator as `num_no_status=1/26`. This affects both gated GRU and
 reliability gated GRU in the same task, so the comparison is still consistent,
 but the report should mention this when presenting final numbers.
 
-## Missing Work
+## Reproduction Commands
 
-To complete the final ablation, rerun temporal EMA, plain GRU, gated GRU, and
-reliability gated GRU under the same full protocol.
-
-Temporal EMA does not need training. Evaluate it directly:
-
-```bash
-cd /inspire/qb-ilm/project/robot-reasoning/xiangyushun-p-xiangyushun/yushun/RAG_exploration/ObjectReact/object-rel-nav
-source portable_envs/nav_env/bin/activate
-export PYTHONPATH="$PWD:$PWD/libs/control/object_react/train"
-export CUDA_VISIBLE_DEVICES=0
-export EGL_PLATFORM=surfaceless
-export PYTHON="$PWD/portable_envs/nav_env/bin/python"
-
-unset LOAD_RUN
-export AGGREGATOR="ema"
-export EXP_NAME="temporal_ema"
-
-bash temporal_objectreact/scripts/21_eval_all_tasks.sh temporal
-```
-
-Plain GRU has not been trained/evaluated locally yet. Train it with:
+If retraining plain GRU is needed, use:
 
 ```bash
 cd /inspire/qb-ilm/project/robot-reasoning/xiangyushun-p-xiangyushun/yushun/RAG_exploration/ObjectReact/object-rel-nav
@@ -263,10 +247,8 @@ export EXP_NAME="gru"
 bash temporal_objectreact/scripts/21_eval_all_tasks.sh temporal
 ```
 
-After the temporal EMA and plain GRU runs finish, regenerate the summary with:
+After evaluation finishes, regenerate the summary with:
 
 ```bash
 portable_envs/nav_env/bin/python scripts/evaluate_objecreact.py ./out/results/
 ```
-
-Then replace the temporary `../temporal.md` rows with full-protocol numbers.

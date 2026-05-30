@@ -10,10 +10,10 @@ This summary separates two different uses of EMA:
   useful, but it should not be directly compared against GRU as the EMA
   baseline.
 
-The temporary temporal EMA and plain GRU numbers below are from
-`../temporal.md`; they use a smaller `step_idx=10` protocol and do not include
-Alt-Goal. The local gated-GRU and reliability-GRU rows use the fuller
-`step_idx=3` protocol from `scripts/evaluate_objecreact.py`.
+The small-protocol temporal-grid numbers below are from `../temporal.md`; they
+use `step_idx=10` and do not include Alt-Goal. The local temporal EMA, plain
+GRU, gated-GRU, and reliability-GRU rows use the fuller `step_idx=3` protocol
+from `scripts/evaluate_objecreact.py`.
 
 ## Temporal Aggregation Ablation
 
@@ -27,11 +27,12 @@ Temporary same-protocol table from `../temporal.md`. Values are
 | plain GRU | 70.0 / 70.0 / 72.5 | 11.1 / 11.1 / 54.5 | 55.6 / 55.5 / 67.5 |
 | gated GRU | 40.0 / 40.0 / 57.7 | 55.6 / 55.6 / 69.5 | 77.8 / 77.8 / 77.8 |
 
-Local full-protocol learned-GRU rows. These should be compared with a rerun
-temporal EMA/plain GRU before final ranking.
+Local full-protocol temporal rows. These are comparable with each other.
 
 | Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg Success | Avg SPL | Avg Soft SPL |
 |---|---:|---:|---:|---:|---:|---:|---:|
+| temporal EMA | 75.76 | 69.57 | 57.69 | 63.33 | 66.59 | 66.58 | 75.95 |
+| plain GRU | 75.76 | 65.22 | 61.54 | 66.67 | 67.30 | 67.30 | 75.73 |
 | gated GRU | 72.73 | 47.83 | 61.54 | 63.33 | 61.36 | 61.35 | 72.50 |
 | reliability gated GRU | 60.61 | 65.22 | 50.00 | 66.67 | 60.63 | 60.62 | 72.09 |
 
@@ -51,9 +52,11 @@ evaluation protocol from `scripts/evaluate_objecreact.py`.
 
 - In the temporary temporal-grid table, `gated GRU` beats `temporal EMA` on
   Shortcut and Reverse.
-- In the local full-protocol learned-GRU rows, `gated GRU` is strongest on
-  Shortcut, while `reliability gated GRU` is stronger on Alt-Goal and Reverse.
+- In the local full-protocol temporal rows, `plain GRU` has the best average
+  Success and SPL, while `temporal EMA` has the best average Soft SPL.
+- `gated GRU` ties `plain GRU` on Shortcut, while `reliability gated GRU` ties
+  `plain GRU` on Alt-Goal and Reverse.
 - `reliability gated GRU` improves over `gated GRU` on `alt_goal` and `reverse`, but drops on `imitate` and `shortcut`.
 - `costmap EMA` has the best average metrics in the separate costmap-smoothing table, but it is not the same baseline as `temporal EMA`.
-- I did not find `logs/temporal_gru/latest.pth` or complete local result folders for plain `gru`; the plain-GRU numbers shown here are copied from `../temporal.md`.
+- The full-protocol plain-GRU row uses `out/results/*/temporal_*_gru/...` complete 36-episode result folders. The one-episode duplicate `temporal_alt_goal_gru/20260530-13-17-11...` run is excluded.
 - I did not find complete local result folders for `mean` aggregators; only config/script references are present.
