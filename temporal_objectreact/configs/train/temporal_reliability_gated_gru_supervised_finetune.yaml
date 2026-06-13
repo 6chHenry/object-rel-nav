@@ -1,0 +1,75 @@
+project_name: object_rel_nav_temporal
+run_name: temporal_reliability_gated_gru_supervised_finetune
+
+mode: train
+predict_dists: False
+goal_type: "image_mask_enc"
+obs_type: "disabled"
+dims: 8
+goal_uses_context: True
+use_mask_grad: False
+
+batch_size: 128
+eval_batch_size: 32
+epochs: 3
+gpu_ids: [0]
+num_workers: 6
+eval_num_workers: 2
+lr: 1e-4
+optimizer: adam
+seed: 0
+save_every: 1
+
+model_type: gnm_temporal
+obs_encoding_size: 1024
+goal_encoding_size: 1024
+temporal_aggregator: reliability_gated_gru
+temporal_ema_lambda: 0.7
+gate_history_update: gated
+
+# Explicit per-frame corruption used by the supervised reliability objective.
+# The first frame is kept clean because it has no history-based gate score.
+gate_corruption_prob: 0.2
+gate_corruption_mode: zero
+gate_supervision_weight: 0.5
+gate_pos_weight: 4.0
+gate_validation_seed: 12345
+
+# Disable the legacy in-model "one frame in 20% of samples" augmentation.
+noise_p: 0.0
+noise_mode: zero
+
+init_from: ./logs/temporal_reliability_gated_gru/latest.pth
+freeze_backbone: False
+
+normalize: True
+context_type: temporal
+context_size: 5
+alpha: 0.5
+
+distance:
+  min_dist_cat: 0
+  max_dist_cat: 20
+action:
+  min_dist_cat: 2
+  max_dist_cat: 10
+close_far_threshold: 10
+
+len_traj_pred: 10
+learn_angle: True
+image_size: [85, 64]
+
+precomputed_filename: ./libs/control/object_react/train/vint_train/data/data_splits/training/bigger_bot_0.3-sh_0.4/bigger_bot_0.3-sh_0.4_gt_topometric_e3d_masks_pls.h5
+pl_perturb_ratio: 0.3
+pl_perturb_type: max_val
+mask_crop_ratio: 1.0
+
+datasets:
+  bigger_bot_0.3-sh_0.4:
+    data_folder: ./libs/control/object_react/train/vint_train/data/data_splits/training/bigger_bot_0.3-sh_0.4/trajectories/
+    train: ./libs/control/object_react/train/vint_train/data/data_splits/training/bigger_bot_0.3-sh_0.4/train/
+    test: ./libs/control/object_react/train/vint_train/data/data_splits/training/bigger_bot_0.3-sh_0.4/test/
+    end_slack: 10
+    goals_per_obs: 2
+    negative_mining: True
+    images_subfolder: images

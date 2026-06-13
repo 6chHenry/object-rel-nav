@@ -34,6 +34,10 @@ goal_source: 'gt_topometric'
 graph_filename: null
 infer_depth: False
 infer_traversable: False
+inject_costmap_noise: False
+noise_prob: 0.2
+inference_noise_seed: 42
+log_gate_diagnostics: False
 
 # logging and display
 log_wandb: False

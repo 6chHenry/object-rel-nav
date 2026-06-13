@@ -16,13 +16,11 @@ through the same checkpoint format as upstream.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 # Make the upstream object_react package importable.
@@ -42,7 +40,12 @@ from .temporal_aggregator import (  # noqa: E402
 )
 
 
-def _make_aggregator(kind: str, dim: int, ema_lambda: float = 0.7):
+def _make_aggregator(
+    kind: str,
+    dim: int,
+    ema_lambda: float = 0.7,
+    gate_history_update: str = "raw",
+):
     """Factory for the temporal aggregator."""
     kind = kind.lower()
     if kind == "mean":
@@ -57,6 +60,7 @@ def _make_aggregator(kind: str, dim: int, ema_lambda: float = 0.7):
         return ReliabilityGatedGRUTemporalAggregator(
             dim=dim,
             ema_lambda=ema_lambda,
+            gate_history_update=gate_history_update,
         )
     if kind == "gru_no_gate":
         return TemporalCostmapAggregator(dim=dim, ema_lambda=ema_lambda, use_gate=False)
@@ -90,6 +94,10 @@ class GNMTemporal(GNM):
 
         self.temporal_kind = kwargs.pop("temporal_aggregator", "gated_gru")
         self.temporal_ema_lambda = kwargs.pop("temporal_ema_lambda", 0.7)
+        self.gate_history_update = kwargs.pop("gate_history_update", "raw")
+        self.log_gate_diagnostics = bool(kwargs.pop("log_gate_diagnostics", False))
+        self.last_temporal_gate_alpha: Optional[torch.Tensor] = None
+        self.last_temporal_gate_logits: Optional[torch.Tensor] = None
         # Noise augmentation: with prob p_noise drop ONE random frame in the
         # window during training, simulating a transient perception failure.
         self.noise_p = float(kwargs.pop("noise_p", 0.0))
@@ -101,6 +109,7 @@ class GNMTemporal(GNM):
             self.temporal_kind,
             dim=self.goal_encoding_size,
             ema_lambda=self.temporal_ema_lambda,
+            gate_history_update=self.gate_history_update,
         )
 
     # ------------------------------------------------------------------
@@ -109,8 +118,14 @@ class GNMTemporal(GNM):
     # leave the obs branch and the prediction heads untouched.
     # ------------------------------------------------------------------
     def forward(
-        self, obs_img: torch.Tensor, goal_img: torch.Tensor
-    ) -> Tuple[Optional[torch.Tensor], torch.Tensor]:
+        self,
+        obs_img: torch.Tensor,
+        goal_img: torch.Tensor,
+        return_gate_diagnostics: bool = False,
+    ):
+        self.last_temporal_gate_alpha = None
+        self.last_temporal_gate_logits = None
+        gate_diagnostics = None
         # ---- observation branch (copied verbatim from GNM.forward) -----
         if self.obs_type == "image":
             obs_encoding = self.obs_mobilenet(obs_img)
@@ -169,8 +184,39 @@ class GNMTemporal(GNM):
             if self.aggregator is None:
                 goal_encoding = stacked.mean(dim=1)
             else:
-                out = self.aggregator(stacked)
+                supports_gate_diagnostics = isinstance(
+                    self.aggregator,
+                    (
+                        TemporalCostmapAggregator,
+                        ReliabilityGatedGRUTemporalAggregator,
+                    ),
+                )
+                needs_gate_output = self.log_gate_diagnostics or return_gate_diagnostics
+                if return_gate_diagnostics and isinstance(
+                    self.aggregator,
+                    ReliabilityGatedGRUTemporalAggregator,
+                ):
+                    out = self.aggregator(
+                        stacked,
+                        return_alpha=True,
+                        return_logits=True,
+                    )
+                elif needs_gate_output and supports_gate_diagnostics:
+                    out = self.aggregator(stacked, return_alpha=True)
+                else:
+                    out = self.aggregator(stacked)
                 goal_encoding = out[0] if isinstance(out, tuple) else out
+                alpha = out[1] if isinstance(out, tuple) and len(out) > 1 else None
+                logits = out[2] if isinstance(out, tuple) and len(out) > 2 else None
+                if self.log_gate_diagnostics and alpha is not None:
+                    self.last_temporal_gate_alpha = alpha.detach()
+                if self.log_gate_diagnostics and logits is not None:
+                    self.last_temporal_gate_logits = logits.detach()
+                if return_gate_diagnostics:
+                    gate_diagnostics = {
+                        "alpha": alpha,
+                        "reliability_logits": logits,
+                    }
         elif self.goal_type == "image":
             # The original upstream behaviour is not what we want to extend
             # (it stacks obs + goal images and runs a single conv stack).
@@ -206,6 +252,8 @@ class GNMTemporal(GNM):
         )
         if self.learn_angle:
             action_pred[:, :, 2:] = F.normalize(action_pred[:, :, 2:].clone(), dim=-1)
+        if return_gate_diagnostics:
+            return dist_pred, action_pred, gate_diagnostics
         return dist_pred, action_pred
 
     # ------------------------------------------------------------------
@@ -224,7 +272,8 @@ class GNMTemporal(GNM):
         print(
             f"[GNMTemporal] loaded {len(load_state)} keys "
             f"({len(missing)} keys in checkpoint had no match); "
-            f"aggregator (kind={self.temporal_kind}) kept at random init."
+            f"unmatched model keys remain at initialization "
+            f"(aggregator={self.temporal_kind})."
         )
         return result
 

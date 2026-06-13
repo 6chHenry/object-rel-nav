@@ -85,6 +85,34 @@ accepts `key=value` (and dotted keys, e.g. `controller.load_run=foo.pth`).
 | `reliability_gated_gru`      | ~6.8 M | GRU with learned reliability gate over current/history relations |
 | `gru_no_gate`                | ~6.3 M | gated mix disabled              |
 
+## Supervised reliability gate
+
+The supervised variant corrupts frames 2--6 independently with probability
+0.2, records the exact zero-map labels, and adds a class-balanced gate BCE
+loss. Gate history is updated from the gated embedding so rejected frames do
+not contaminate the reference.
+
+Run the short warm-start experiment before the final fair retraining:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 \
+  bash temporal_objectreact/scripts/run_supervised_reliability_gate.sh finetune
+CUDA_VISIBLE_DEVICES=0 \
+  bash temporal_objectreact/scripts/run_supervised_reliability_gate.sh eval-finetune
+bash temporal_objectreact/scripts/run_supervised_reliability_gate.sh analyze-finetune
+```
+
+The final run starts from the same upstream ObjectReact checkpoint as the
+other GRU variants:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 \
+  bash temporal_objectreact/scripts/run_supervised_reliability_gate.sh full
+CUDA_VISIBLE_DEVICES=0 \
+  bash temporal_objectreact/scripts/run_supervised_reliability_gate.sh eval-full
+bash temporal_objectreact/scripts/run_supervised_reliability_gate.sh analyze-full
+```
+
 ## Smoke test
 
 Verifies imports + forward shape (no habitat, no pretrained weights):

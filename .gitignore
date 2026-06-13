@@ -16,6 +16,8 @@ data/*
 *.code-workspace
 *.npy
 *.pdf
+!paper_figures/
+!paper_figures/*.pdf
 hub/*
 *.h5
 *.pickle

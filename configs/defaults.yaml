@@ -35,6 +35,8 @@ use_costmap_ema: False
 inject_costmap_noise: False
 ema_lambda: 0.7
 noise_prob: 0.2
+inference_noise_seed: 42
+log_gate_diagnostics: False
 
 # logging and display
 log_wandb: False
