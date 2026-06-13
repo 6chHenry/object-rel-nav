@@ -94,6 +94,27 @@ methods. Observed injection rates are 19.41%-20.20%.
 - The reliability advantage is a single-seed trend, not yet a statistically
   significant result.
 
+## Supervised Gate Fine-Tuning
+
+A three-epoch fine-tune adds explicit per-frame corruption labels to the
+noise-trained Reliability-Gated GRU. It changes pooled gate detection from
+ROC-AUC/AP `0.312/0.136` to `1.000/1.000`. Mean alpha becomes `0.99951` on
+clean frames and `0.000079` on injected frames.
+
+| Task | Clean SPL | Eval Noise 0.2 SPL | Clean Soft-SPL | Noisy Soft-SPL |
+|---|---:|---:|---:|---:|
+| Imitate | 42.42 | 48.48 | 57.46 | 66.61 |
+| Alt-Goal | 47.83 | 52.17 | 65.41 | 66.87 |
+| Shortcut | 26.92 | 19.23 | 52.10 | 47.90 |
+| Reverse | 30.00 | 33.33 | 45.00 | 51.06 |
+| **Average** | **36.79** | **38.31** | **54.99** | **58.11** |
+
+The detector succeeds, but navigation fails: the original noise-trained
+Reliability-Gated GRU records 60.62 clean and 60.16 noisy Avg SPL. Therefore
+corruption detection accuracy is not sufficient for robust control. This
+fine-tune is retained as a negative mechanism experiment, not as an improved
+navigation model.
+
 ## Data Caveats
 
 - Effective filtered episode counts are 33/23/26/30 for
@@ -101,5 +122,7 @@ methods. Observed injection rates are 19.41%-20.20%.
 - Shortcut has two known missing-data failures.
 - One non-blacklisted Shortcut episode has no `success_status` and remains in
   the denominator for all three methods.
+- Supervised fine-tune results use the same blacklist-filtered protocol and
+  `best.pth` checkpoint for both clean and noisy evaluation.
 - Legacy `noise` and `costmap EMA + noise` tables are invalidated because the
   intervention flags were not connected to controller execution in those runs.
