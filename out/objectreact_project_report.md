@@ -225,6 +225,55 @@ The 1.36-point Avg SPL advantage over plain GRU should be reported as a
 promising trend rather than a statistically established margin because all
 learned models use one training seed and the evaluation set is modest.
 
+## Supervised Gate Fine-Tuning: Negative Result
+
+To make the reliability score explicitly detect corrupted frames, the
+noise-trained reliability checkpoint was fine-tuned for three epochs with
+independent per-frame zero corruption and a weighted binary
+cross-entropy gate loss. The fine-tune used:
+
+```text
+init_from: logs/temporal_reliability_gated_gru/latest.pth
+epochs: 3
+lr: 1e-4
+gate_corruption_prob: 0.2
+gate_supervision_weight: 0.5
+gate_pos_weight: 4.0
+gate_history_update: gated
+checkpoint: logs/temporal_reliability_gated_gru_supervised_finetune/best.pth
+```
+
+The frame detector became essentially perfect:
+
+| Gate metric | Original noise-trained model | Supervised fine-tune |
+|---|---:|---:|
+| Pooled ROC-AUC | 0.312 | **1.000** |
+| Pooled average precision | 0.136 | **1.000** |
+| Mean alpha, clean frame | 0.98803 | **0.99951** |
+| Mean alpha, injected frame | 0.99840 | **0.000079** |
+
+However, navigation performance collapsed:
+
+| Task | Clean SPL | Inference-noise 0.2 SPL | Clean Soft-SPL | Noisy Soft-SPL |
+|---|---:|---:|---:|---:|
+| Imitate | 42.42 | 48.48 | 57.46 | 66.61 |
+| Alt-Goal | 47.83 | 52.17 | 65.41 | 66.87 |
+| Shortcut | 26.92 | 19.23 | 52.10 | 47.90 |
+| Reverse | 30.00 | 33.33 | 45.00 | 51.06 |
+| **Average** | **36.79** | **38.31** | **54.99** | **58.11** |
+
+The original noise-trained reliability model reaches 60.62 clean and 60.16
+noisy Avg SPL. Supervised fine-tuning therefore loses 23.83 clean points and
+21.86 noisy points. Since the clean evaluation also collapses, the failure
+cannot be explained only as overreacting to injected frames.
+
+This experiment establishes an important negative result: correctly detecting
+synthetic corruption is not sufficient for good navigation. The supervised
+objective and gated-history intervention change the representation consumed by
+the recurrent controller. A future design should decouple detection from
+control, freeze or distill the original navigation policy, and use a softer
+intervention than replacing features solely according to a near-binary gate.
+
 ## Invalidated Legacy Results
 
 Earlier tables labeled `noise`, `costmap EMA`, and `costmap EMA + noise` are
@@ -260,6 +309,13 @@ Train 0.0 / inference 0.2 timestamps:
 | cosine-gated GRU | `20260611-10-17-48` | `20260611-10-54-59` | `20260611-11-35-36` | `20260611-12-16-50` |
 | reliability-gated GRU | `20260611-12-53-42` | `20260611-13-41-57` | `20260611-14-26-58` | `20260611-15-17-53` |
 
+Supervised reliability fine-tune timestamps:
+
+| Eval noise | Imitate | Alt-Goal | Shortcut | Reverse |
+|---|---|---|---|---|
+| 0.0 | `20260613-10-41-08` | `20260613-11-24-02` | `20260613-12-06-32` | `20260613-12-55-08` |
+| 0.2 | `20260613-05-56-27` | `20260613-06-38-24` | `20260613-07-21-33` | `20260613-08-08-07` |
+
 ## Reliability Checks and Limitations
 
 - All 24 selected noisy runs loaded the intended checkpoint and contain 36
@@ -271,6 +327,9 @@ Train 0.0 / inference 0.2 timestamps:
   retains it in the denominator for all three methods.
 - Measured corruption rates are approximately 20% in every run.
 - All learned models use training seed 0.
+- The supervised fine-tune proves that gate detection and navigation quality
+  can move in opposite directions: ROC-AUC/AP reach 1.0 while clean/noisy Avg
+  SPL fall to 36.79/38.31.
 - The evaluation still uses ground-truth perception plus synthetic zero-map
   corruption. FastSAM/LightGlue evaluation remains future work.
 

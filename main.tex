@@ -26,7 +26,7 @@
 \maketitle
 
 \begin{abstract}
-ObjectReact~\cite{garg2025objectreact} conditions a local navigation controller on a per-frame ``WayObject Costmap'' rather than raw RGB. A single corrupted costmap can therefore drive the feed-forward policy away from the expert distribution with no temporal signal for recovery. The original single-frame controller reaches $64.4$ clean Avg SPL, while a parameter-free temporal EMA reaches $66.6$. We further compare a plain GRU, a cosine-gated GRU, and a learned reliability-gated GRU in a complete $2{\times}2$ design: training corruption probability $0.0$ or $0.2$, crossed with inference corruption probability $0.0$ or $0.2$. Without training corruption, clean Avg SPL ranges from $36.6$ to $67.3$ and all methods degrade under inference corruption. With training corruption, clean performance narrows to $60.6$--$61.4$ SPL, and the reliability-gated GRU retains $60.2$ SPL under inference corruption, losing only $0.46$ points. However, a step-level mechanism analysis shows that its scalar gate does \emph{not} detect injected failures as intended: using $1-\alpha_t$ as the corruption score gives pooled ROC-AUC $0.312$. The navigation gain therefore cannot be attributed to a calibrated low-reliability detector and should instead be treated as a behavioral property of the jointly trained recurrent architecture. Four automatically selected matched rollouts illustrate this recovery pattern: the reliability model succeeds where plain GRU times out on every task. Results use one training seed, so margins are reported as trends rather than statistically established improvements.
+ObjectReact~\cite{garg2025objectreact} conditions a local navigation controller on a per-frame ``WayObject Costmap'' rather than raw RGB. A single corrupted costmap can therefore drive the feed-forward policy away from the expert distribution with no temporal signal for recovery. The original single-frame controller reaches $64.4$ clean Avg SPL, while a parameter-free temporal EMA reaches $66.6$. We further compare a plain GRU, a cosine-gated GRU, and a learned reliability-gated GRU in a complete $2{\times}2$ design: training corruption probability $0.0$ or $0.2$, crossed with inference corruption probability $0.0$ or $0.2$. Without training corruption, clean Avg SPL ranges from $36.6$ to $67.3$ and all methods degrade under inference corruption. With training corruption, clean performance narrows to $60.6$--$61.4$ SPL, and the reliability-gated GRU retains $60.2$ SPL under inference corruption, losing only $0.46$ points. However, a step-level mechanism analysis shows that its scalar gate does \emph{not} detect injected failures as intended: using $1-\alpha_t$ as the corruption score gives pooled ROC-AUC $0.312$. Explicit three-epoch corruption supervision raises both ROC-AUC and AP to $1.000$, but collapses clean/noisy Avg SPL to $36.8/38.3$. Thus failure detection is neither the explanation for the original gain nor sufficient by itself for robust navigation. Four automatically selected matched rollouts illustrate recovery cases of the original reliability model. Results use one training seed, so margins are reported as trends rather than statistically established improvements.
 \end{abstract}
 
 \IEEEpeerreviewmaketitle
@@ -445,10 +445,60 @@ navigation improvement in Table~\ref{tab:two_by_two} cannot be attributed to
 the scorer explicitly identifying and suppressing zero-costmap frames.
 A more defensible interpretation is that task-loss training changes the
 combined gate--GRU dynamics and recurrent representation, while leaving the
-scalar gate uncalibrated. Explicit corruption supervision or a calibration
-loss is needed before $\alpha_t$ can be interpreted as reliability.
+scalar gate uncalibrated. We next test whether directly supervising the gate
+fixes the mechanism without damaging the controller.
 
-\subsection{Experiment 4: matched qualitative rollouts}
+\subsection{Experiment 4: explicit gate supervision}
+\label{sec:supervised_gate}
+
+We fine-tune the corruption-trained reliability model for three epochs with
+explicit per-frame labels. Each non-initial frame is independently zeroed with
+probability $0.2$, and a weighted binary cross-entropy term trains
+$1-\alpha_t$ to predict corruption. The fine-tune starts from the original
+reliability checkpoint, uses learning rate $10^{-4}$, gate-loss weight $0.5$,
+positive weight $4.0$, and updates the running history with the gated frame.
+We select the checkpoint with lowest validation total loss.
+
+The detector objective succeeds completely: pooled ROC-AUC and AP are both
+$1.000$ on 26,842 logged evaluation steps. Mean alpha is $0.99951$ for clean
+frames and $0.000079$ for injected frames. Navigation, however, collapses
+(Table~\ref{tab:supervised_gate_nav}).
+
+\begin{table}[t]
+\centering
+\caption{Blacklist-filtered navigation SPL after three-epoch supervised gate
+fine-tuning. The same checkpoint is evaluated without and with inference
+corruption probability $0.2$.}
+\label{tab:supervised_gate_nav}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lcc}
+\toprule
+Task & Eval noise $0.0$ & Eval noise $0.2$ \\
+\midrule
+Imitate  & 42.42 & 48.48 \\
+Alt-Goal & 47.83 & 52.17 \\
+Shortcut & 26.92 & 19.23 \\
+Reverse  & 30.00 & 33.33 \\
+\midrule
+Average  & \textbf{36.79} & \textbf{38.31} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The original corruption-trained reliability model reaches $60.62$ clean and
+$60.16$ noisy Avg SPL, so supervised fine-tuning loses $23.83$ and $21.86$
+points respectively. Its clean Avg Soft-SPL is $54.99$ and noisy Avg Soft-SPL
+is $58.11$. Because performance is already poor when no inference corruption
+is present, this is not merely an overreaction to injected frames. The result
+demonstrates a mechanism--control mismatch: a gate can become a perfect
+synthetic failure classifier while the coupled recurrent policy becomes a
+substantially worse navigator. Future detector objectives must preserve the
+control representation, for example by freezing the navigation policy,
+decoupling detection from feature replacement, or regularizing the new policy
+against the original action predictions.
+
+\subsection{Experiment 5: matched qualitative rollouts}
 \label{sec:qualitative}
 
 We next compare the corruption-trained Plain GRU and Reliability-Gated GRU
@@ -514,6 +564,13 @@ reliability-gated recurrent architecture, not a generic effect of
 augmentation. However, the gate diagnostic shows that this benefit is not
 implemented as the intended low-alpha corruption detector.
 
+\emph{Detection versus control.} Explicit supervision makes the synthetic
+corruption detector perfect but reduces clean/noisy Avg SPL to $36.8/38.3$.
+Therefore neither detector accuracy nor low alpha on corrupted frames is
+sufficient evidence of navigation robustness. The useful behavior lies in the
+joint gate--GRU policy and must be preserved when adding interpretability
+objectives.
+
 \section{Limitations}
 \label{sec:limitations}
 We state the scope of these claims explicitly.
@@ -533,7 +590,7 @@ ablation.
 \item \textbf{Modest episode budget.} Each task has at most 36 raw episodes and fewer after blacklist filtering. The $1.36$ Avg SPL margin between reliability-gated and plain GRU should be treated as a trend.
 \item \textbf{Single seed.} All learned variants use training seed 0; seed variance has not been measured.
 \item \textbf{Dataset failures.} Shortcut contains two known missing-data episodes and one non-blacklisted episode without a success status. All methods are evaluated with the same handling.
-\item \textbf{Uncalibrated gate semantics.} The reliability architecture is robust behaviorally, but its scalar alpha is saturated and anti-correlated with injected failures under the intended interpretation. It should not be presented as an interpretable reliability probability.
+\item \textbf{Detection--control trade-off.} The original robust model has an uncalibrated, anti-correlated alpha. Supervised fine-tuning corrects the detector to ROC-AUC/AP $1.0$ but reduces clean/noisy Avg SPL to $36.8/38.3$. The current architecture therefore cannot provide both calibrated detection and strong control.
 \item \textbf{Qualitative selection.} The matched videos deliberately select episodes where the methods differ and therefore illustrate failure modes rather than estimate their population frequency; aggregate rates are reported separately.
 \end{itemize}
 
@@ -544,12 +601,13 @@ ablation.
 \begin{enumerate}
 \item \textbf{Inferred-perception evaluation.} Replace ground-truth segmentation with FastSAM~\cite{zhao2023fastsam} and LightGlue~\cite{lindenberger2023lightglue} to test naturally structured perception failures.
 \item \textbf{Multiple seeds and corruption levels.} Repeat training and evaluate a sweep over inference-noise probabilities to quantify variance and robustness curves.
-\item \textbf{Explicit gate supervision.} Add a corruption-classification or calibration objective so that low alpha has an identifiable reliability meaning, then repeat the detection analysis on synthetic and natural failures.
+\item \textbf{Detector--controller decoupling.} Preserve the original navigation policy while learning reliability, for example with a frozen controller, a separate detector head, soft interventions, or action-distillation regularization. Evaluate detection and navigation jointly.
+\item \textbf{Corrected EMA robustness baseline.} Evaluate Temporal EMA with the corrected inference-noise injector before making a direct robustness claim against the learned variants.
 \end{enumerate}
 
 \section{Conclusion}
 \label{sec:conclusion}
-We targeted ObjectReact's single-frame brittleness with lightweight temporal aggregation and completed a fair $2{\times}2$ training-noise by inference-noise study. The results show a strong architecture--augmentation interaction. Reliability gating fails without corrupted training examples but, after training with $\mathrm{noise\_p}{=}0.2$, becomes the strongest and most stable model under inference corruption, reaching $60.2$ Avg SPL with only a $0.46$-point loss. Four matched rollouts confirm recovery cases across all tasks. Mechanism analysis, however, rejects the simplest explanation for this gain: the learned alpha does not identify injected failures and is not an interpretable reliability probability. The strongest supported conclusion is therefore behavioral---corruption-trained reliability-gated recurrence is robust---while explicit supervision is needed to make the gate itself reliable and explainable.
+We targeted ObjectReact's single-frame brittleness with lightweight temporal aggregation and completed a fair $2{\times}2$ training-noise by inference-noise study. The results show a strong architecture--augmentation interaction. Reliability gating fails without corrupted training examples but, after training with $\mathrm{noise\_p}{=}0.2$, becomes the strongest and most stable learned model under inference corruption, reaching $60.2$ Avg SPL with only a $0.46$-point loss. Four matched rollouts show recovery cases across all tasks. Mechanism analysis rejects the simplest explanation for this gain: the original alpha does not identify injected failures. Moreover, explicit supervision makes corruption detection perfect while reducing clean/noisy Avg SPL to $36.8/38.3$. The strongest supported conclusion is therefore behavioral---the jointly trained corruption-augmented recurrent policy is robust---while calibrated detection and strong control remain unsolved as a joint objective.
 
 \section*{Acknowledgments}
 We build on the public ObjectReact codebase and the Habitat/HM3D ecosystem. Our repository is at \url{https://github.com/6chHenry/object-rel-nav}.
