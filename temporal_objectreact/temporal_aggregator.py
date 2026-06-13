@@ -196,11 +196,18 @@ class ReliabilityGate(nn.Module):
         dim: int,
         ema_lambda: float = 0.7,
         hidden_dim: Optional[int] = None,
+        history_update: str = "raw",
     ):
         super().__init__()
         if not (0.0 < ema_lambda < 1.0):
             raise ValueError(f"ema_lambda must be in (0, 1), got {ema_lambda}")
+        if history_update not in {"raw", "gated"}:
+            raise ValueError(
+                "history_update must be one of {'raw', 'gated'}, "
+                f"got {history_update}"
+            )
         self.ema_lambda = ema_lambda
+        self.history_update = history_update
         hidden_dim = hidden_dim or max(32, dim // 8)
         self.scorer = nn.Sequential(
             nn.Linear(dim * 4 + 2, hidden_dim),
@@ -209,15 +216,21 @@ class ReliabilityGate(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, return_alpha: bool = False
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+        self,
+        x: torch.Tensor,
+        return_alpha: bool = False,
+        return_logits: bool = False,
+    ):
         B, K, _D = x.shape
         gated = []
         alphas = []
+        logits = []
 
         mean = x[:, 0]
         gated.append(x[:, 0])
         alphas.append(torch.ones(B, device=x.device, dtype=x.dtype))
+        # The first frame has no history and is excluded from supervision.
+        logits.append(torch.zeros(B, device=x.device, dtype=x.dtype))
 
         for t in range(1, K):
             e_t = x[:, t]
@@ -229,15 +242,20 @@ class ReliabilityGate(nn.Module):
                 [e_t, mean, diff, prod, cos.unsqueeze(-1), delta.unsqueeze(-1)],
                 dim=-1,
             )
-            alpha = torch.sigmoid(self.scorer(gate_input).squeeze(-1))
+            reliability_logit = self.scorer(gate_input).squeeze(-1)
+            alpha = torch.sigmoid(reliability_logit)
+            logits.append(reliability_logit)
             alphas.append(alpha)
 
             mixed = alpha.unsqueeze(-1) * e_t + (1.0 - alpha).unsqueeze(-1) * mean
             gated.append(mixed)
-            mean = self.ema_lambda * mean + (1.0 - self.ema_lambda) * e_t
+            history_frame = mixed if self.history_update == "gated" else e_t
+            mean = self.ema_lambda * mean + (1.0 - self.ema_lambda) * history_frame
 
         gated_t = torch.stack(gated, dim=1)
         alpha_t = torch.stack(alphas, dim=1) if return_alpha else None
+        if return_logits:
+            return gated_t, alpha_t, torch.stack(logits, dim=1)
         return gated_t, alpha_t
 
 
@@ -250,20 +268,35 @@ class ReliabilityGatedGRUTemporalAggregator(nn.Module):
         hidden_dim: Optional[int] = None,
         ema_lambda: float = 0.7,
         gate_hidden_dim: Optional[int] = None,
+        gate_history_update: str = "raw",
     ):
         super().__init__()
         self.gate = ReliabilityGate(
             dim=dim,
             ema_lambda=ema_lambda,
             hidden_dim=gate_hidden_dim,
+            history_update=gate_history_update,
         )
         self.gru = GRUTemporalAggregator(dim=dim, hidden_dim=hidden_dim)
 
     def forward(
-        self, x: torch.Tensor, return_alpha: bool = False
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-        x, alpha = self.gate(x, return_alpha=return_alpha)
+        self,
+        x: torch.Tensor,
+        return_alpha: bool = False,
+        return_logits: bool = False,
+    ):
+        gate_output = self.gate(
+            x,
+            return_alpha=return_alpha,
+            return_logits=return_logits,
+        )
+        if return_logits:
+            x, alpha, logits = gate_output
+        else:
+            x, alpha = gate_output
         out = self.gru(x)
+        if return_logits:
+            return out, alpha, logits
         return out, alpha
 
 

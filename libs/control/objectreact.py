@@ -2,6 +2,7 @@
 Learnt controller for the robot
 """
 
+import hashlib
 import sys
 import numpy as np
 import yaml
@@ -71,6 +72,15 @@ class ObjRelLearntController:
             raise ValueError(f"config must be a filepath or a dict, not {type(config)}")
 
         self.goal_source = kwargs.get("goal_source", None)
+        self.inject_costmap_noise = bool(kwargs.pop("inject_costmap_noise", False))
+        self.noise_prob = float(kwargs.pop("noise_prob", 0.0))
+        self.inference_noise_seed = int(kwargs.pop("inference_noise_seed", 42))
+        self.log_gate_diagnostics = bool(kwargs.pop("log_gate_diagnostics", False))
+        if not 0.0 <= self.noise_prob <= 1.0:
+            raise ValueError(f"noise_prob must be in [0, 1], got {self.noise_prob}")
+        self._noise_context = ""
+        self._noise_rng = None
+        self._last_inference_noise_applied = False
 
         self.dirname_vis_episode = kwargs.get("dirname_vis_episode", None)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -108,10 +118,19 @@ class ObjRelLearntController:
         )
         modelpath = self.config["load_run"]
         if modelpath is None:
-            logger.info("Downloading model from HuggingFace Hub...")
-            modelpath = hf_hub_download(
-                repo_id="oravus/ObjectReact", filename="latest.pth"
+            local_modelpath = (
+                Path(__file__).resolve().parents[2]
+                / "model_weights"
+                / "object_react_latest.pth"
             )
+            if local_modelpath.is_file():
+                logger.info(f"Loading local ObjectReact checkpoint {local_modelpath}")
+                modelpath = str(local_modelpath)
+            else:
+                logger.info("Downloading model from HuggingFace Hub...")
+                modelpath = hf_hub_download(
+                    repo_id="oravus/ObjectReact", filename="latest.pth"
+                )
         _ = resume_model(
             self.config, self.model, load_project_folder=Path(modelpath).parent
         )
@@ -130,7 +149,7 @@ class ObjRelLearntController:
         self.waypoint_index = self.config["waypoint_index"]
         print("Learnt controller initialized!")
 
-    def reset_params(self):
+    def reset_params(self, noise_context=None):
         """
         Reset the controller
         """
@@ -142,9 +161,34 @@ class ObjRelLearntController:
 
         self.goal_mask_vis = None
         self.action_pred = None
+        self._reset_inference_noise(noise_context)
 
         self.v_rollout = np.zeros(self.config["len_traj_pred"])
         self.w_rollout = np.zeros(self.config["len_traj_pred"])
+
+    def _reset_inference_noise(self, noise_context=None):
+        """Create a stable per-episode RNG shared across controller variants."""
+        self._noise_context = "" if noise_context is None else str(noise_context)
+        seed_material = f"{self.inference_noise_seed}:{self._noise_context}".encode()
+        context_seed = int.from_bytes(
+            hashlib.sha256(seed_material).digest()[:8], byteorder="little"
+        )
+        self._noise_rng = np.random.default_rng(context_seed)
+        self._last_inference_noise_applied = False
+
+    def _apply_inference_costmap_noise(self, goal_enc):
+        """Zero the current WayObject Costmap with probability ``noise_prob``."""
+        if self._noise_rng is None:
+            self._reset_inference_noise()
+        apply_noise = (
+            self.inject_costmap_noise
+            and self.noise_prob > 0.0
+            and self._noise_rng.random() < self.noise_prob
+        )
+        self._last_inference_noise_applied = bool(apply_noise)
+        if apply_noise:
+            return np.zeros_like(goal_enc)
+        return goal_enc
 
     def maintain_history(self, curr, history):
         """
@@ -239,6 +283,7 @@ class ObjRelLearntController:
             goal_image = torch.stack(goal_images)
         else:
             goal_enc, self.goal_mask_vis = self.encode_goal(goal_data)
+            goal_enc = self._apply_inference_costmap_noise(goal_enc)
 
             if self.config["goal_uses_context"]:
                 self.maintain_history(
@@ -322,14 +367,19 @@ class ObjRelLearntController:
             )
 
             logger.info("Visualization created")
-            self.controller_logs.append(
-                {
-                    "action_pred": self.action_pred,
-                    "v_rollout": self.v_rollout,
-                    "w_rollout": self.w_rollout,
-                }
-            )
+            controller_log = {
+                "action_pred": self.action_pred,
+                "v_rollout": self.v_rollout,
+                "w_rollout": self.w_rollout,
+                "inference_costmap_noise_applied": (self._last_inference_noise_applied),
+            }
+            controller_log.update(self._controller_log_extras())
+            self.controller_logs.append(controller_log)
         return v, -w, vis_img
+
+    def _controller_log_extras(self):
+        """Return optional per-step diagnostics for ``controller_logs``."""
+        return {}
 
 
 def visualize_prediction(

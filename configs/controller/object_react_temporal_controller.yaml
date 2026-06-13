@@ -27,6 +27,7 @@ obs_encoding_size: 1024
 goal_encoding_size: 1024
 temporal_aggregator: gated_gru  # [mean, ema, gru, gated_gru, gru_no_gate]
 temporal_ema_lambda: 0.7
+gate_history_update: raw        # supervised reliability model overrides to gated
 
 # normalization for the action space
 normalize: True

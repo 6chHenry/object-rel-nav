@@ -35,21 +35,34 @@ def get_depth_model():
     return depth_model
 
 
-def get_controller_model(method, goal_source, config_filepath):
+def get_controller_model(
+    method,
+    goal_source,
+    config_filepath,
+    inject_costmap_noise=False,
+    noise_prob=0.0,
+    inference_noise_seed=42,
+    log_gate_diagnostics=False,
+):
     goal_controller = None
+    controller_kwargs = {
+        "goal_source": goal_source,
+        "inject_costmap_noise": inject_costmap_noise,
+        "noise_prob": noise_prob,
+        "inference_noise_seed": inference_noise_seed,
+        "log_gate_diagnostics": log_gate_diagnostics,
+    }
     if method == "learnt":
         from libs.control.objectreact import ObjRelLearntController
 
-        goal_controller = ObjRelLearntController(
-            config_filepath, goal_source=goal_source
-        )
+        goal_controller = ObjRelLearntController(config_filepath, **controller_kwargs)
     elif method == "learnt_temporal":
         from temporal_objectreact.objectreact_temporal_controller import (
             ObjRelTemporalLearntController,
         )
 
         goal_controller = ObjRelTemporalLearntController(
-            config_filepath, goal_source=goal_source
+            config_filepath, **controller_kwargs
         )
     return goal_controller
 

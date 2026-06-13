@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import torch
@@ -51,18 +50,21 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
             cfg["goal_uses_context"] = True
 
         # Save our load_run aside and force the parent to load the upstream
-        # HF checkpoint instead. Our checkpoints store a plain state_dict
-        # under "model", which the upstream resume_model() can't consume
-        # (it expects a pickled model object). We re-load our weights
-        # ourselves at the end of __init__.
+        # ObjectReact checkpoint instead. Our checkpoints store a plain
+        # state_dict under "model", which the upstream resume_model() can't
+        # consume (it expects a pickled model object). We re-load our weights
+        # ourselves at the end of __init__. Prefer the local checkpoint so
+        # evaluation does not require network access.
         _our_load_run = cfg.get("load_run", None)
-        cfg["load_run"] = None
+        local_upstream = _REPO_ROOT / "model_weights" / "object_react_latest.pth"
+        cfg["load_run"] = str(local_upstream) if local_upstream.is_file() else None
 
         super().__init__(cfg, **kwargs)
 
         # Build our model.  Keep all the kwargs the parent used.
         self.config["temporal_aggregator"] = cfg.get("temporal_aggregator", "gated_gru")
         self.config["temporal_ema_lambda"] = cfg.get("temporal_ema_lambda", 0.7)
+        self.config["gate_history_update"] = cfg.get("gate_history_update", "raw")
         new_model = GNMTemporal(
             self.config["context_size"],
             self.config["len_traj_pred"],
@@ -71,6 +73,8 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
             self.config["goal_encoding_size"],
             temporal_aggregator=self.config["temporal_aggregator"],
             temporal_ema_lambda=self.config["temporal_ema_lambda"],
+            gate_history_update=self.config["gate_history_update"],
+            log_gate_diagnostics=self.log_gate_diagnostics,
             noise_p=0.0,  # never inject noise at inference time
             goal_type=self.config.get("goal_type", "image_mask_enc"),
             obs_type=self.config.get("obs_type", "disabled"),
@@ -104,12 +108,26 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
                 print(f"  unexpected keys: {len(unexpected)}")
         self.model = new_model.to(self.device).eval()
 
+    def _controller_log_extras(self):
+        if not self.log_gate_diagnostics:
+            return {}
+        alpha = self.model.last_temporal_gate_alpha
+        if alpha is None:
+            return {
+                "temporal_gate_alpha": None,
+                "temporal_gate_alpha_current": None,
+            }
+        alpha_np = alpha[0].float().cpu().numpy()
+        return {
+            "temporal_gate_alpha": alpha_np,
+            "temporal_gate_alpha_current": float(alpha_np[-1]),
+        }
+
     # ------------------------------------------------------------------
     # Override ready_goal so that the goal tensor carries K = context_size
     # + 1 stacked costmaps even though upstream defaults to single-frame.
     # ------------------------------------------------------------------
     def ready_goal(self, goal_data):
-        from PIL import Image  # local to avoid hard import in unit tests
         import torch as _torch
         from libs.control.object_react.train.vint_train.training.train_utils import (
             get_goal_image,
@@ -117,6 +135,7 @@ class ObjRelTemporalLearntController(ObjRelLearntController):
 
         # Encode the current frame's costmap exactly as the parent does.
         goal_enc, self.goal_mask_vis = self.encode_goal(goal_data)
+        goal_enc = self._apply_inference_costmap_noise(goal_enc)
 
         # Maintain a list of the last K encodings; pad by replication while
         # the history is shorter than K.

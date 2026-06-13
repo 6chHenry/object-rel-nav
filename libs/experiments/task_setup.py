@@ -573,7 +573,7 @@ class Episode:
 
         elif control_method == "learnt":
             goal_controller = self.preload_data["goal_controller"]
-            goal_controller.reset_params()
+            goal_controller.reset_params(noise_context=self.path_episode.name)
             goal_controller.dirname_vis_episode = self.dirname_vis_episode
 
         self.goal_controller = goal_controller
@@ -1123,7 +1123,13 @@ def init_results_dir_and_save_cfg(args, default_logger=None):
 def preload_models(args):
     # preload some models before iterating over the episodes
     goal_controller = model_loader.get_controller_model(
-        args.method, args.goal_source, args.controller["config_file"]
+        args.method,
+        args.goal_source,
+        args.controller["config_file"],
+        inject_costmap_noise=getattr(args, "inject_costmap_noise", False),
+        noise_prob=getattr(args, "noise_prob", 0.0),
+        inference_noise_seed=getattr(args, "inference_noise_seed", 42),
+        log_gate_diagnostics=getattr(args, "log_gate_diagnostics", False),
     )
 
     # Our temporal controller piggy-backs on the regular "learnt" code path

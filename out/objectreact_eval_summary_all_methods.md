@@ -1,115 +1,105 @@
 # ObjectReact Evaluation Summary
 
-Date: 2026-05-30
+Date: 2026-06-12
 
-This summary separates two different uses of EMA:
+Primary metrics are blacklist-filtered results from
+`scripts/evaluate_objecreact.py`. The full protocol uses HM3D IIN validation
+episodes, hard difficulty, `step_idx=3`, `end_idx=108`, and `max_steps=300`.
 
-- `temporal EMA` is a temporal costmap-feature aggregator, comparable with
-  GRU-style temporal aggregation.
-- `costmap EMA` is a pipeline-level smoothing / noise-robustness trick. It is
-  useful, but it should not be directly compared against GRU as the EMA
-  baseline.
+## Original and Parameter-Free Clean Baselines
 
-The small-protocol temporal-grid numbers below are from `../temporal.md`; they
-use `step_idx=10` and do not include Alt-Goal. The local temporal EMA, plain
-GRU, gated-GRU, and reliability-GRU rows use the fuller `step_idx=3` protocol
-from `scripts/evaluate_objecreact.py`.
+| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg SR | Avg SPL | Avg Soft-SPL |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ObjectReact, single frame | 72.73 | 65.22 | 46.15 | **73.33** | 64.36 | 64.35 | 75.17 |
+| Temporal EMA, K=6 | **75.76** | **69.57** | **57.69** | 63.33 | **66.59** | **66.58** | **75.95** |
 
-Noise setting: the local temporal aggregation evaluations below do not inject
-inference-time costmap noise. The `noise` and `costmap EMA + noise` rows in the
-separate costmap exploration table are the only rows with inference-time noise.
-For training, gated GRU and reliability gated GRU used `noise_p=0.2`, while
-plain GRU used `noise_p=0.0`; temporal EMA is parameter-free.
+Temporal EMA is a parameter-free six-frame embedding baseline with
+`lambda=0.7`. These references share the episode and metric protocol but use
+their respective historical controller configurations, so the 2.23-point
+difference is descriptive rather than a strict architectural ablation. The
+older top-level `ema/noise` intervention runs are not used because those flags
+were not connected to controller execution at that time.
 
-## Temporal Aggregation Ablation
+## Train Noise 0.0, Clean Evaluation
 
-Temporary same-protocol table from `../temporal.md`. Values are
-`Success / SPL / Soft SPL` percentages.
+| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg SR | Avg SPL | Avg Soft-SPL |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| plain GRU | 75.76 | **65.22** | **61.54** | **66.67** | **67.30** | **67.30** | **75.73** |
+| cosine-gated GRU | **78.79** | 52.17 | 57.69 | 60.00 | 62.16 | 62.16 | 70.84 |
+| reliability-gated GRU | 45.45 | 56.52 | 7.69 | 36.67 | 36.58 | 36.56 | 50.36 |
 
-| Method | Imitate | Shortcut | Reverse |
+## Train Noise 0.0, Inference Noise 0.2
+
+Observed injection rates are 19.44%-20.05%.
+
+| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg SR | Avg SPL | Avg Soft-SPL |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| plain GRU | **72.73** | **56.52** | 50.00 | 53.33 | **58.14** | **58.14** | **69.44** |
+| cosine-gated GRU | 66.67 | 39.13 | **57.69** | **63.33** | 56.70 | 56.70 | 68.43 |
+| reliability-gated GRU | 30.30 | 47.83 | 0.00 | 20.00 | 24.53 | 24.52 | 39.94 |
+
+Clean-to-noisy Avg SPL deltas are -9.15, -5.46, and -12.05 respectively.
+
+## Train Noise 0.2, Clean Evaluation
+
+All learned variants use training `noise_p=0.2`.
+
+| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg SR | Avg SPL | Avg Soft-SPL |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| plain GRU | **75.76** | 52.17 | 57.69 | 56.67 | 60.57 | 60.57 | 72.42 |
+| cosine-gated GRU | 72.73 | 47.83 | **61.54** | 63.33 | **61.36** | **61.35** | **72.50** |
+| reliability-gated GRU | 60.61 | **65.22** | 50.00 | **66.67** | 60.62 | 60.62 | 72.09 |
+
+The maximum clean Avg SPL difference is only 0.78 points.
+
+## Train Noise 0.2, Inference Noise 0.2
+
+All models use training `noise_p=0.2`. At inference, the current costmap is
+zeroed independently with probability 0.2 before entering temporal history.
+Seed 42 and the episode name define a shared corruption schedule across
+methods. Observed injection rates are 19.41%-20.20%.
+
+| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg SR | Avg SPL | Avg Soft-SPL |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| plain GRU | **69.70** | 47.83 | **57.69** | 60.00 | 58.80 | 58.80 | 69.39 |
+| cosine-gated GRU | 66.67 | 39.13 | 53.85 | 60.00 | 54.91 | 54.91 | 68.74 |
+| reliability-gated GRU | 63.64 | **60.87** | 46.15 | **70.00** | **60.16** | **60.16** | **74.02** |
+
+## Robustness Delta
+
+| Method | Delta Avg SR | Delta Avg SPL | Delta Avg Soft-SPL |
 |---|---:|---:|---:|
-| ObjectReact / single frame | 40.0 / 40.0 / 56.6 | 44.4 / 44.4 / 56.8 | 44.4 / 44.4 / 50.0 |
-| temporal EMA | 40.0 / 40.0 / 56.6 | 33.3 / 33.3 / 55.3 | 44.4 / 44.4 / 49.6 |
-| plain GRU | 70.0 / 70.0 / 72.5 | 11.1 / 11.1 / 54.5 | 55.6 / 55.5 / 67.5 |
-| gated GRU | 40.0 / 40.0 / 57.7 | 55.6 / 55.6 / 69.5 | 77.8 / 77.8 / 77.8 |
+| plain GRU | -1.77 | -1.77 | -3.03 |
+| cosine-gated GRU | -6.45 | -6.44 | -3.76 |
+| reliability-gated GRU | **-0.46** | **-0.46** | **+1.93** |
 
-Local full-protocol temporal rows. These are comparable with each other.
-They are blacklist-filtered metrics from `scripts/evaluate_objecreact.py`, not
-raw `eval_runner` terminal summaries.
+## Main Findings
 
-| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg Success | Avg SPL | Avg Soft SPL |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| temporal EMA | 75.76 | 69.57 | 57.69 | 63.33 | 66.59 | 66.58 | 75.95 |
-| plain GRU | 75.76 | 65.22 | 61.54 | 66.67 | 67.30 | 67.30 | 75.73 |
-| gated GRU | 72.73 | 47.83 | 61.54 | 63.33 | 61.36 | 61.35 | 72.50 |
-| reliability gated GRU | 60.61 | 65.22 | 50.00 | 66.67 | 60.63 | 60.62 | 72.09 |
+- The completed experiment is a full `2x2` design over training and inference
+  noise probabilities `{0.0, 0.2}`.
+- Reliability gating depends strongly on training corruption: noisy Avg SPL
+  improves from 24.52 to 60.16 when training noise changes from 0.0 to 0.2.
+- Plain GRU noisy Avg SPL changes only from 58.14 to 58.80.
+- Cosine-gated GRU does not benefit from training corruption: noisy Avg SPL
+  changes from 56.70 to 54.91.
+- Under matched training noise, the three learned models have nearly tied
+  clean averages but different task specializations.
+- Reliability-gated GRU is the best learned model under verified 20%
+  inference corruption. It leads plain GRU by 1.36 Avg SPL and cosine-gated
+  GRU by 5.25 Avg SPL.
+- The reliability model retains clean Avg SPL within 0.46 points and improves
+  Avg Soft-SPL by 1.93 points.
+- Cosine gating is not robust: it loses 6.44 Avg SPL, indicating that scalar
+  feature similarity is an inadequate reliability signal.
+- The reliability advantage is a single-seed trend, not yet a statistically
+  significant result.
 
-### Raw, No-Blacklist Temporal Metrics
+## Data Caveats
 
-The table below uses the same completed result directories as the
-blacklist-filtered table above, but counts every raw episode directory in the
-denominator. In practice this means 36 episodes per task, including episodes
-that `configs/defaults.yaml` marks as invalid or problematic. This table is
-useful for transparency, but it is not the primary comparison protocol used by
-`scripts/evaluate_objecreact.py`.
-
-| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg Success | Avg SPL | Avg Soft SPL |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| temporal EMA | 69.44 | 55.56 | 52.78 | 63.89 | 60.42 | 60.39 | 70.76 |
-| plain GRU | 69.44 | 50.00 | 47.22 | 66.67 | 58.33 | 58.33 | 69.69 |
-| gated GRU | 69.44 | 52.78 | 58.33 | 61.11 | 60.42 | 60.41 | 70.88 |
-| reliability gated GRU | 55.56 | 55.56 | 47.22 | 66.67 | 56.25 | 56.24 | 67.62 |
-
-Raw success counts:
-
-| Method | Imitate | Alt-Goal | Shortcut | Reverse |
-|---|---:|---:|---:|---:|
-| temporal EMA | 25/36 | 20/36 | 19/36 | 23/36 |
-| plain GRU | 25/36 | 18/36 | 17/36 | 24/36 |
-| gated GRU | 25/36 | 19/36 | 21/36 | 22/36 |
-| reliability gated GRU | 20/36 | 20/36 | 17/36 | 24/36 |
-
-## Separate Costmap EMA Exploration
-
-These rows are from `out/logs/ema_summary.md` and use the blacklist-filtered
-evaluation protocol from `scripts/evaluate_objecreact.py`.
-
-| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg Success | Avg SPL | Avg Soft SPL |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| clean / ObjectReact | 72.73 | 65.22 | 46.15 | 73.33 | 64.36 | 64.35 | 75.17 |
-| noise | 60.61 | 69.57 | 50.00 | 66.67 | 61.71 | 61.71 | 71.45 |
-| costmap EMA | 75.76 | 60.87 | 57.69 | 73.33 | 66.91 | 66.91 | 77.70 |
-| costmap EMA + noise | 72.73 | 56.52 | 38.46 | 73.33 | 60.26 | 60.24 | 74.15 |
-
-### Raw, No-Blacklist Costmap Metrics
-
-This table counts all 36 raw episode directories per task. The `noise` and
-`costmap EMA + noise` rows still include their intended inference-time noise;
-the phrase "no-blacklist" only means no episode filtering.
-
-| Method | Imitate | Alt-Goal | Shortcut | Reverse | Avg Success | Avg SPL | Avg Soft SPL |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| clean / ObjectReact | 69.44 | 55.56 | 44.44 | 69.44 | 59.72 | 59.70 | 71.38 |
-| noise | 58.33 | 55.56 | 44.44 | 66.67 | 56.25 | 56.24 | 66.71 |
-| costmap EMA | 72.22 | 63.89 | 50.00 | 69.44 | 63.89 | 63.87 | 74.56 |
-| costmap EMA + noise | 66.67 | 50.00 | 38.89 | 72.22 | 56.94 | 56.92 | 70.28 |
-
-## Notes
-
-- In the temporary temporal-grid table, `gated GRU` beats `temporal EMA` on
-  Shortcut and Reverse.
-- In the local full-protocol temporal rows, `plain GRU` has the best average
-  Success and SPL, while `temporal EMA` has the best average Soft SPL.
-- `gated GRU` ties `plain GRU` on Shortcut, while `reliability gated GRU` ties
-  `plain GRU` on Alt-Goal and Reverse.
-- `reliability gated GRU` improves over `gated GRU` on `alt_goal` and `reverse`, but drops on `imitate` and `shortcut`.
-- `costmap EMA` has the best average metrics in the separate costmap-smoothing table, but it is not the same baseline as `temporal EMA`.
-- The full-protocol plain-GRU row uses `out/results/*/temporal_*_gru/...` complete 36-episode result folders. The one-episode duplicate `temporal_alt_goal_gru/20260530-13-17-11...` run is excluded.
-- Without blacklist filtering, the local temporal ranking changes: gated GRU
-  has the best Avg SPL and Avg Soft SPL, while temporal EMA ties it on Avg
-  Success. Plain GRU drops mainly because its raw Alt-Goal and Shortcut success
-  rates are lower.
-- The blacklist-filtered table remains the primary table because it matches the
-  repository's default evaluation script and removes episodes already marked as
-  invalid/problematic.
-- I did not find complete local result folders for `mean` aggregators; only config/script references are present.
+- Effective filtered episode counts are 33/23/26/30 for
+  Imitate/Alt-Goal/Shortcut/Reverse.
+- Shortcut has two known missing-data failures.
+- One non-blacklisted Shortcut episode has no `success_status` and remains in
+  the denominator for all three methods.
+- Legacy `noise` and `costmap EMA + noise` tables are invalidated because the
+  intervention flags were not connected to controller execution in those runs.
