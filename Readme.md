@@ -427,6 +427,15 @@ benchmark claims. The report notes that some temporary EMA/plain-GRU baselines
 were collected under a smaller protocol, so a strict final ranking should rerun
 all aggregators under the same evaluation configuration.
 
+### Presentation Rollout Videos
+
+Four matched Plain GRU versus Reliability-Gated GRU rollout videos are
+available in [`presentation_videos/`](presentation_videos/README.md). They
+cover Imitate, Alt-Goal, Shortcut, and Reverse under controlled 20% inference
+corruption. The accompanying README documents the selected episodes, panel
+annotations, aggregate context, and the limitations of these deliberately
+selected qualitative examples.
+
 ## Formatting and Code Quality
 
 The repository is formatted with Ruff:

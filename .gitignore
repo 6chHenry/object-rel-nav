@@ -23,6 +23,8 @@ hub/*
 *.pickle
 temp.ipynb
 *.mp4
+!presentation_videos/
+!presentation_videos/*.mp4
 *.npz
 #*.png
 
