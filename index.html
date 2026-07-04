@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Temporal Costmap Aggregation for Object-Relative Navigation</title>
+  <meta name="description" content="Project page for Temporal Costmap Aggregation: mitigating distribution shift in ObjectReact-style object-relative visual navigation." />
+  <style>
+    :root {
+      --ink: #141414;
+      --paper: #f5f1e8;
+      --soft: #e7dfd0;
+      --line: #2a2927;
+      --rust: #b84a2f;
+      --teal: #1f746e;
+      --blue: #245f9f;
+      --yellow: #d89d23;
+      --muted: #605c54;
+      --white: #fffaf0;
+      --shadow: 0 18px 45px rgba(20, 20, 20, .18);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper);
+      color: var(--ink);
+    }
+
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      line-height: 1.55;
+    }
+
+    a { color: inherit; }
+
+    .topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 12px 24px;
+      background: rgba(245, 241, 232, .86);
+      border-bottom: 1px solid rgba(42, 41, 39, .18);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .nav {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .nav a {
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+    }
+
+    .nav a:hover { border-color: currentColor; }
+
+    .hero {
+      min-height: 82vh;
+      position: relative;
+      display: grid;
+      align-items: end;
+      overflow: hidden;
+      border-bottom: 3px solid var(--line);
+      background: #101010;
+    }
+
+    .hero video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: .58;
+      filter: saturate(.9) contrast(1.08);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(20,20,20,.86), rgba(20,20,20,.48) 54%, rgba(20,20,20,.22)),
+        repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 1px, transparent 1px 6px);
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 2;
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 116px 0 56px;
+      color: var(--white);
+    }
+
+    .kicker {
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: clamp(12px, 1.2vw, 14px);
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: #f2c067;
+    }
+
+    h1, h2, h3 {
+      margin: 0;
+      line-height: .98;
+      font-weight: 900;
+    }
+
+    h1 {
+      max-width: 1020px;
+      margin-top: 18px;
+      font-size: clamp(44px, 8vw, 104px);
+      letter-spacing: 0;
+    }
+
+    .hero-copy p {
+      max-width: 720px;
+      margin: 24px 0 0;
+      font-size: clamp(18px, 2.1vw, 27px);
+      color: rgba(255,250,240,.9);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 16px;
+      border: 2px solid currentColor;
+      background: var(--white);
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 900;
+      text-transform: uppercase;
+      box-shadow: 5px 5px 0 var(--rust);
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+
+    .button.alt {
+      background: transparent;
+      color: var(--white);
+      box-shadow: 5px 5px 0 rgba(242, 192, 103, .75);
+    }
+
+    .button:hover {
+      transform: translate(3px, 3px);
+      box-shadow: 2px 2px 0 currentColor;
+    }
+
+    main {
+      background:
+        linear-gradient(90deg, rgba(20,20,20,.055) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(20,20,20,.04) 1px, transparent 1px),
+        var(--paper);
+      background-size: 42px 42px;
+    }
+
+    section {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 56px 0;
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 32px;
+      align-items: start;
+      margin-bottom: 28px;
+      border-top: 3px solid var(--line);
+      padding-top: 18px;
+    }
+
+    h2 {
+      font-size: clamp(30px, 4.8vw, 58px);
+    }
+
+    .section-head p {
+      max-width: 720px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      min-height: 132px;
+      padding: 18px;
+      border: 2px solid var(--line);
+      background: var(--white);
+      box-shadow: var(--shadow);
+    }
+
+    .metric strong {
+      display: block;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: clamp(27px, 4vw, 45px);
+      line-height: 1;
+      color: var(--rust);
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .panel {
+      border: 2px solid var(--line);
+      background: rgba(255, 250, 240, .82);
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel h3 {
+      font-size: 27px;
+      margin-bottom: 14px;
+    }
+
+    .panel p { margin: 0 0 13px; }
+
+    .steps {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 14px;
+      align-items: start;
+      padding: 14px;
+      border: 2px solid var(--line);
+      background: var(--soft);
+    }
+
+    .num {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border: 2px solid var(--line);
+      background: var(--yellow);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-weight: 900;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 13px;
+      background: var(--white);
+      border: 2px solid var(--line);
+    }
+
+    th, td {
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(42,41,39,.2);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--line);
+      color: var(--white);
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: .06em;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 3px 7px;
+      background: var(--teal);
+      color: var(--white);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .video-tile {
+      border: 2px solid var(--line);
+      background: var(--line);
+      color: var(--white);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .video-tile video {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: #000;
+    }
+
+    .video-tile h3 {
+      padding: 12px 14px 3px;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 14px;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    .video-tile p {
+      margin: 0;
+      padding: 0 14px 14px;
+      color: rgba(255,250,240,.78);
+      font-size: 14px;
+    }
+
+    .pdf-link {
+      display: block;
+      min-height: 220px;
+      padding: 22px;
+      border: 2px dashed var(--line);
+      background: var(--soft);
+      text-decoration: none;
+    }
+
+    .pdf-link b {
+      display: block;
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 18px;
+      text-transform: uppercase;
+    }
+
+    .footer {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 38px 0 54px;
+      border-top: 3px solid var(--line);
+      color: var(--muted);
+      font-family: "Trebuchet MS", Verdana, sans-serif;
+      font-size: 13px;
+    }
+
+    @media (max-width: 860px) {
+      .topbar {
+        position: static;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .nav { flex-wrap: wrap; }
+      .hero { min-height: 78vh; }
+      .section-head,
+      .two-col,
+      .metrics,
+      .media-grid {
+        grid-template-columns: 1fr;
+      }
+
+      section { padding: 42px 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Temporal Object-Relative Navigation</div>
+    <nav class="nav" aria-label="Project sections">
+      <a href="#problem">Problem</a>
+      <a href="#method">Method</a>
+      <a href="#results">Results</a>
+      <a href="#media">Rollouts</a>
+      <a href="#links">Links</a>
+    </nav>
+  </header>
+
+  <section class="hero" aria-label="Project hero">
+    <video src="assets/shortcut_bxsVRursffK_0000000_toilet_27_matched.mp4" autoplay muted loop playsinline></video>
+    <div class="hero-copy">
+      <div class="kicker">Final Project Report</div>
+      <h1>Temporal Costmap Aggregation for Object-Relative Visual Navigation</h1>
+      <p>
+        A lightweight memory layer for ObjectReact that studies when short-horizon
+        costmap history improves robustness, and when reliability detection fails to
+        explain control.
+      </p>
+      <div class="actions">
+        <a class="button" href="https://github.com/6chHenry/object-rel-nav">Code Repository</a>
+        <a class="button alt" href="#results">Read Results</a>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section id="problem">
+      <div class="section-head">
+        <div class="kicker">Problem</div>
+        <p>
+          ObjectReact predicts waypoints from the current WayObject Costmap. When
+          a single frame is corrupted by segmentation or matching errors, the
+          feed-forward controller has no memory to recover from the bad input.
+        </p>
+      </div>
+      <div class="metrics">
+        <div class="metric"><strong>K=6</strong><span>Recent costmap embeddings in each temporal window.</span></div>
+        <div class="metric"><strong>4</strong><span>ObjectReact tasks: Imitate, Alt-Goal, Shortcut, Reverse.</span></div>
+        <div class="metric"><strong>5</strong><span>Aggregators: EMA, GRU, cosine gate, reliability gate, soft fusion.</span></div>
+        <div class="metric"><strong>3</strong><span>Corruption geometries: full-frame, object-level, localized patch.</span></div>
+      </div>
+    </section>
+
+    <section id="method">
+      <div class="section-head">
+        <div class="kicker">System Design</div>
+        <p>
+          The project leaves ObjectReact's map, perception pipeline, expert
+          generator, encoder, and waypoint head intact. Only the embedding passed
+          from the costmap encoder to the waypoint head is replaced by a temporal
+          aggregate.
+        </p>
+      </div>
+      <div class="two-col">
+        <article class="panel">
+          <h3>Temporal Aggregation</h3>
+          <p>
+            Each WayObject Costmap is encoded as a 1024-dimensional embedding.
+            Instead of sending only the current embedding to the controller, the
+            system aggregates a six-frame window and predicts the next waypoint
+            rollout from that temporally smoothed representation.
+          </p>
+          <div class="steps">
+            <div class="step"><div class="num">1</div><div><b>Encode</b><br />Convert each costmap frame into an ObjectReact embedding.</div></div>
+            <div class="step"><div class="num">2</div><div><b>Aggregate</b><br />Fuse recent embeddings with EMA, GRU, gated GRU, or soft fusion.</div></div>
+            <div class="step"><div class="num">3</div><div><b>Act</b><br />Use the original waypoint head to predict a 10-step local trajectory.</div></div>
+          </div>
+        </article>
+        <article class="panel">
+          <h3>Why Gates?</h3>
+          <p>
+            A plain recurrent model can average useful history, but may also
+            integrate corrupted observations. Gated variants test whether a
+            reliability signal can discount anomalous frames before they disturb
+            the controller's hidden state.
+          </p>
+          <p>
+            A central finding is negative but useful: a scalar reliability gate
+            can improve behavior without becoming an interpretable failure
+            detector, and explicit detector supervision can damage navigation.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section id="results">
+      <div class="section-head">
+        <div class="kicker">Results</div>
+        <p>
+          The evaluation separates recovery from fully invalid frames, mechanism
+          interpretability, and the paper-aligned object-level corruption that
+          ObjectReact was trained to tolerate.
+        </p>
+      </div>
+      <div class="metrics">
+        <div class="metric"><strong>60.2</strong><span>Avg SPL for reliability-gated GRU under full-frame zero-out after corruption training.</span></div>
+        <div class="metric"><strong>0.312</strong><span>ROC-AUC of 1-alpha as a corruption detector: not interpretable reliability.</span></div>
+        <div class="metric"><strong>12/12</strong><span>Cosine-gated GRU task-rate wins over the per-step baseline under segment outliers.</span></div>
+        <div class="metric"><strong>67.70</strong><span>Avg SPL for reliability-aware soft fusion under localized patch dropout.</span></div>
+      </div>
+
+      <div class="two-col" style="margin-top: 18px;">
+        <article class="panel">
+          <h3>Main Object-Level Result</h3>
+          <table>
+            <thead>
+              <tr><th>Method</th><th>Imitate SR</th><th>Alt SR</th><th>Shortcut SR</th><th>Reverse SR</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Baseline</td><td>21.21</td><td>13.04</td><td>0.00</td><td>10.00</td></tr>
+              <tr><td><span class="tag">Cosine-Gated GRU</span></td><td>42.42</td><td>21.74</td><td>19.23</td><td>26.67</td></tr>
+              <tr><td>Reliability-Gated GRU</td><td>36.36</td><td>13.04</td><td>15.38</td><td>20.00</td></tr>
+            </tbody>
+          </table>
+        </article>
+        <article class="panel">
+          <h3>Interpretation</h3>
+          <p>
+            Under paper-aligned per-segment outlier dropout, the cosine-gated
+            GRU is the strongest recurrent aggregator. Under localized patch
+            failures, EMA and reliability-aware soft fusion are stronger.
+          </p>
+          <p>
+            The robust conclusion is not that one learned reliability detector
+            solves perception failure. The evidence supports temporal
+            aggregation as a useful ObjectReact extension, with the aggregation
+            mechanism matched to corruption geometry.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <section id="media">
+      <div class="section-head">
+        <div class="kicker">Qualitative Rollouts</div>
+        <p>
+          Matched videos compare Plain GRU and Reliability-Gated GRU under the
+          same full-frame corruption schedule. Left is Plain GRU; right is
+          Reliability-Gated GRU. Red borders mark injected noise.
+        </p>
+      </div>
+      <div class="media-grid">
+        <article class="video-tile">
+          <video src="assets/alt_goal_yr17PDCnDDW_0000000_plant_32_matched.mp4" controls preload="metadata"></video>
+          <h3>Alt-Goal</h3>
+          <p>Plain GRU ends 6.875 m away; reliability-gated GRU succeeds at 0.978 m.</p>
+        </article>
+        <article class="video-tile">
+          <video src="assets/shortcut_bxsVRursffK_0000000_toilet_27_matched.mp4" controls preload="metadata"></video>
+          <h3>Shortcut</h3>
+          <p>Plain GRU ends 8.710 m away; reliability-gated GRU succeeds at 0.991 m.</p>
+        </article>
+        <article class="video-tile">
+          <video src="assets/imitate_6s7QHgap2fW_0000000_tv_monitor_34_matched.mp4" controls preload="metadata"></video>
+          <h3>Imitate</h3>
+          <p>Reliability-gated GRU completes the episode while Plain GRU times out near the goal.</p>
+        </article>
+        <article class="video-tile">
+          <video src="assets/reverse_wcojb4TFT35_0000000_bed_17_matched.mp4" controls preload="metadata"></video>
+          <h3>Reverse</h3>
+          <p>Reliability-gated GRU reaches within one meter; Plain GRU remains 5.741 m away.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="links">
+      <div class="section-head">
+        <div class="kicker">Links</div>
+        <p>
+          Code, assets, and supporting visuals for the project. The page is
+          designed to be dropped into a GitHub Pages directory without a build
+          step.
+        </p>
+      </div>
+      <div class="two-col">
+        <a class="pdf-link" href="https://github.com/6chHenry/object-rel-nav">
+          <b>GitHub Repository</b>
+          Source code, training scripts, evaluation wrappers, and project report.
+        </a>
+        <a class="pdf-link" href="assets/matched_rollouts_contact_sheet.pdf">
+          <b>Matched Rollout Contact Sheet</b>
+          A compact PDF overview of the four qualitative comparison cases.
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Kewei Liu, Zihang Zhou, Zihao Long. Built on ObjectReact, TANGO, RoboHop,
+    Habitat, and HM3D.
+  </footer>
+</body>
+</html>
