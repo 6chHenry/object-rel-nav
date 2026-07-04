@@ -36,6 +36,7 @@ infer_depth: False
 infer_traversable: False
 inject_costmap_noise: False
 noise_prob: 0.2
+noise_seg_ratio: 0.0
 inference_noise_seed: 42
 log_gate_diagnostics: False
 

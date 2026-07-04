@@ -74,10 +74,18 @@ class ObjRelLearntController:
         self.goal_source = kwargs.get("goal_source", None)
         self.inject_costmap_noise = bool(kwargs.pop("inject_costmap_noise", False))
         self.noise_prob = float(kwargs.pop("noise_prob", 0.0))
+        # Per-segment outlier dropout ratio used in §VI. Independent of
+        # noise_prob (which zeroes the whole frame). Matches the paper's
+        # training augmentation perturb_mask_pls (paper §3.3).
+        self.noise_seg_ratio = float(kwargs.pop("noise_seg_ratio", 0.0))
         self.inference_noise_seed = int(kwargs.pop("inference_noise_seed", 42))
         self.log_gate_diagnostics = bool(kwargs.pop("log_gate_diagnostics", False))
         if not 0.0 <= self.noise_prob <= 1.0:
             raise ValueError(f"noise_prob must be in [0, 1], got {self.noise_prob}")
+        if not 0.0 <= self.noise_seg_ratio <= 1.0:
+            raise ValueError(
+                f"noise_seg_ratio must be in [0, 1], got {self.noise_seg_ratio}"
+            )
         self._noise_context = ""
         self._noise_rng = None
         self._last_inference_noise_applied = False
@@ -209,6 +217,23 @@ class ObjRelLearntController:
         masks, pls = goal_data
         if not self.is_pl_normalized:
             pls = normalize_pls(pls, outlier_value=self.pl_outlier_value)
+        if (
+            self.inject_costmap_noise
+            and self.noise_seg_ratio > 0.0
+            and len(pls) > 0
+        ):
+            # Per-segment outlier dropout — same mechanism as the training
+            # augmentation perturb_mask_pls in the original ObjectReact paper
+            # (set pls=outlier_value → 0 in normalized space → rank_enc[0]).
+            # Simulates a fraction of segments being undetected or mismatched
+            # at inference time.
+            if self._noise_rng is None:
+                self._reset_inference_noise()
+            n_drop = int(round(len(pls) * self.noise_seg_ratio))
+            if n_drop > 0:
+                idx = self._noise_rng.choice(len(pls), n_drop, replace=False)
+                pls = pls.copy()
+                pls[idx] = 0
         pls = pls.astype(np.uint8)
         masks = masks.transpose([1, 2, 0])[::4, ::4]  # (H,W,D)
         mask_vis = np.zeros((masks.shape[0], masks.shape[1]))

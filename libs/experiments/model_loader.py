@@ -41,6 +41,7 @@ def get_controller_model(
     config_filepath,
     inject_costmap_noise=False,
     noise_prob=0.0,
+    noise_seg_ratio=0.0,
     inference_noise_seed=42,
     log_gate_diagnostics=False,
 ):
@@ -49,6 +50,7 @@ def get_controller_model(
         "goal_source": goal_source,
         "inject_costmap_noise": inject_costmap_noise,
         "noise_prob": noise_prob,
+        "noise_seg_ratio": noise_seg_ratio,
         "inference_noise_seed": inference_noise_seed,
         "log_gate_diagnostics": log_gate_diagnostics,
     }

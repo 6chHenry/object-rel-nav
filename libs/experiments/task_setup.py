@@ -1128,6 +1128,7 @@ def preload_models(args):
         args.controller["config_file"],
         inject_costmap_noise=getattr(args, "inject_costmap_noise", False),
         noise_prob=getattr(args, "noise_prob", 0.0),
+        noise_seg_ratio=getattr(args, "noise_seg_ratio", 0.0),
         inference_noise_seed=getattr(args, "inference_noise_seed", 42),
         log_gate_diagnostics=getattr(args, "log_gate_diagnostics", False),
     )
