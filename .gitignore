@@ -15,7 +15,6 @@ data/*
 *.txt
 *.code-workspace
 *.npy
-*.pdf
 !paper_figures/
 !paper_figures/*.pdf
 hub/*
